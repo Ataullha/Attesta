@@ -1,0 +1,134 @@
+'use client';
+
+import Link from 'next/link';
+import type { Design } from '@/lib/design';
+import { btn, field } from '@/components/ui/styles';
+
+export type IssueResult = { serial: string; verifyUrl: string; guest: boolean; remaining?: number };
+export type IssueError = { message: string; code?: string };
+
+type Props = {
+  design: Design;
+  values: Record<string, string>;
+  onValue: (key: string, v: string) => void;
+  onSettings: (patch: Partial<Design['settings']>) => void;
+  onIssue: () => void;
+  busy: boolean;
+  progress: string | null;
+  result: IssueResult | null;
+  error: IssueError | null;
+  signedIn: boolean;
+  quotaNote: string;
+  templateId: string | null;
+};
+
+export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy, progress, result, error, signedIn, quotaNote, templateId }: Props) {
+  return (
+    <div className="text-[14px]">
+      <div className="border-b border-rule px-4 py-3">
+        <h2 className="font-serif text-[22px] leading-tight">Issue one certificate</h2>
+        <p className="mt-1 text-[12.5px] leading-snug text-muted">Fill in the details. The preview updates as you type.</p>
+      </div>
+      <form
+        className="space-y-3.5 px-4 py-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onIssue();
+        }}
+      >
+        {design.fields.map((f) => (
+          <label key={f.key} className="block">
+            <span className={field.label}>
+              {f.label}
+              {f.required && <span className="text-revoked"> *</span>}
+            </span>
+            <input
+              className={field.input}
+              type={f.type === 'email' ? 'email' : 'text'}
+              value={values[f.key] ?? ''}
+              maxLength={300}
+              required={f.required}
+              placeholder={f.type === 'date' ? 'Leave empty for today' : f.sample || ''}
+              onChange={(e) => onValue(f.key, e.target.value)}
+            />
+          </label>
+        ))}
+
+        {signedIn && (
+          <fieldset className="space-y-2.5 rounded-[4px] border border-rule bg-paper/60 p-3">
+            <legend className="px-1 text-[12.5px] text-ink-2">Verification page</legend>
+            <label className="block">
+              <span className="mb-1 block text-[12px] text-muted">Show the recipient’s name as</span>
+              <select className={field.small} value={design.settings.nameDisplay} onChange={(e) => onSettings({ nameDisplay: e.target.value as Design['settings']['nameDisplay'] })}>
+                <option value="partial">First name and last initial</option>
+                <option value="full">Full name</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </label>
+            <label className="flex items-start gap-2 text-[12.5px] leading-snug">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brass" checked={design.settings.indexable} onChange={(e) => onSettings({ indexable: e.target.checked })} />
+              Let search engines list the verification page
+            </label>
+          </fieldset>
+        )}
+
+        <button type="submit" className={btn.brass + ' w-full'} disabled={busy}>
+          {busy ? progress ?? 'Working…' : 'Issue and download PDF'}
+        </button>
+        <p className="text-[12.5px] leading-snug text-muted">{quotaNote}</p>
+        {signedIn && templateId && (
+          <Link href={`/app/bulk?template=${templateId}`} className="block text-[13px] text-brass underline-offset-2 hover:underline">
+            Issue many from a CSV file instead
+          </Link>
+        )}
+      </form>
+
+      {error && (
+        <div role="alert" className="mx-4 mb-4 rounded-[4px] border border-revoked/30 bg-revoked-soft p-3 text-[13px] leading-snug text-revoked">
+          {error.message}
+          {error.code === 'guest_limit' && (
+            <Link href="/register" className="mt-2 block font-medium underline">
+              Create a free account
+            </Link>
+          )}
+          {(error.code === 'quota_exceeded' || error.code === 'needs_package') && (
+            <Link href="/app/billing" className="mt-2 block font-medium underline">
+              See packages
+            </Link>
+          )}
+          {error.code === 'unauthenticated' && (
+            <Link href="/login" className="mt-2 block font-medium underline">
+              Sign in
+            </Link>
+          )}
+        </div>
+      )}
+
+      {result && (
+        <div className="mx-4 mb-6 rounded-[4px] border border-seal/30 bg-seal-soft p-3.5" aria-live="polite">
+          <p className="text-[13.5px] font-medium text-seal">{result.guest ? 'Downloaded (guest copy)' : 'Issued and downloaded'}</p>
+          <p className="mt-1 font-mono text-[12.5px] tracking-wide text-ink">{result.serial}</p>
+          {result.guest ? (
+            <p className="mt-2 text-[12.5px] leading-snug text-ink-2">
+              Guest certificates carry a footer note and are not registered, so the QR code won’t confirm them.
+              {typeof result.remaining === 'number' && ` ${result.remaining} guest certificate${result.remaining === 1 ? '' : 's'} left.`}{' '}
+              <Link href="/register" className="font-medium text-brass underline">
+                Sign up free
+              </Link>{' '}
+              for verifiable certificates.
+            </p>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a href={result.verifyUrl} target="_blank" rel="noreferrer" className={btn.small + ' bg-seal text-card hover:bg-[#24553F]'}>
+                Open verification page
+              </a>
+              <button type="button" className={btn.small + ' border border-seal/40 text-seal hover:bg-card'} onClick={() => navigator.clipboard?.writeText(result.verifyUrl)}>
+                Copy link
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

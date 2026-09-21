@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #F7F4EE;
+  --color-card: #FFFDFA;
+  --color-ink: #191712;
+  --color-ink-2: #4A4438;
+  --color-muted: #6B6455;
+  --color-rule: #E3DDD0;
+  --color-rule-2: #D6CEBC;
+  --color-brass: #8A5D28;
+  --color-brass-dark: #6B4720;
+  --color-brass-soft: #F2E8D5;
+  --color-gold: #C8A14B;
+  --color-seal: #2E6B4F;
+  --color-seal-soft: #E4EFE7;
+  --color-revoked: #9E3B2B;
+  --color-revoked-soft: #F6E4E0;
+
+  --font-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brass);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-brass-soft);
+}
+
+.prose-body p { margin-top: 1em; line-height: 1.65; max-width: 68ch; color: var(--color-ink-2); }
+.prose-body h2 { font-family: var(--font-serif); font-size: 30px; line-height: 1.15; margin-top: 1.6em; }
+.prose-body h3 { font-weight: 600; font-size: 17px; margin-top: 1.4em; }
+.prose-body ul { margin-top: 0.8em; padding-left: 1.2em; list-style: disc; color: var(--color-ink-2); max-width: 68ch; }
+.prose-body li { margin-top: 0.4em; line-height: 1.6; }
+.prose-body a { color: var(--color-brass); text-decoration: underline; text-underline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "attesta",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "keys:generate": "node scripts/generate-keys.mjs",
+    "admin:promote": "node scripts/promote-admin.mjs",
+    "vercel-build": "node scripts/migrate.mjs && next build"
+  },
+  "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/great-vibes": "^5.3.0",
+    "@fontsource/hind-siliguri": "^5.3.0",
+    "@fontsource/instrument-sans": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/noto-serif-bengali": "^5.3.0",
+    "@fontsource/playfair-display": "^5.3.0",
+    "@fontsource/tiro-bangla": "^5.3.0",
+    "drizzle-orm": "^0.45.2",
+    "jsbarcode": "^3.12.3",
+    "jszip": "^3.10.2",
+    "next": "^16.3.5",
+    "papaparse": "^5.7.0",
+    "pdf-lib": "^1.17.1",
+    "postgres": "^3.4.9",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.2",
+    "@types/papaparse": "^5.5.2",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.9"
+  }
+}

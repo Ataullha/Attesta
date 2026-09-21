@@ -1,0 +1,97 @@
+import 'server-only';
+import { cache } from 'react';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { and, eq, gt } from 'drizzle-orm';
+import { db, schema } from '@/lib/db';
+import { randomToken, sha256Hex } from '@/lib/security/crypto';
+import { HttpError } from '@/lib/security/request';
+
+export const SESSION_COOKIE = 'att_session';
+const SESSION_DAYS = 30;
+
+export type SessionUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: 'user' | 'admin';
+  credits: number;
+  emailVerified: boolean;
+};
+
+export async function createSession(userId: string) {
+  const token = randomToken(32);
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000);
+  await db().insert(schema.sessions).values({ id: sha256Hex(token), userId, expiresAt });
+  const jar = await cookies();
+  jar.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    expires: expiresAt,
+  });
+}
+
+export async function destroySession() {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (token) await db().delete(schema.sessions).where(eq(schema.sessions.id, sha256Hex(token)));
+  jar.delete(SESSION_COOKIE);
+}
+
+/** The signed-in user for this request, or null. Cached per request. */
+export const getUser = cache(async (): Promise<SessionUser | null> => {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (!token || token.length > 100) return null;
+  const rows = await db()
+    .select({
+      id: schema.users.id,
+      email: schema.users.email,
+      name: schema.users.name,
+      role: schema.users.role,
+      credits: schema.users.credits,
+      emailVerifiedAt: schema.users.emailVerifiedAt,
+      bannedAt: schema.users.bannedAt,
+    })
+    .from(schema.sessions)
+    .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
+    .where(and(eq(schema.sessions.id, sha256Hex(token)), gt(schema.sessions.expiresAt, new Date())))
+    .limit(1);
+  const u = rows[0];
+  if (!u || u.bannedAt) return null;
+  return { id: u.id, email: u.email, name: u.name, role: u.role, credits: u.credits, emailVerified: !!u.emailVerifiedAt };
+});
+
+/** For pages: redirect to sign-in if there is no user. */
+export async function requireUserPage(next = '/app') {
+  const user = await getUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return user;
+}
+
+export async function requireAdminPage() {
+  const user = await requireUserPage('/admin');
+  if (user.role !== 'admin') redirect('/app');
+  return user;
+}
+
+/** For API routes. */
+export async function requireUser() {
+  const user = await getUser();
+  if (!user) throw new HttpError(401, 'Sign in to do this.', 'unauthenticated');
+  return user;
+}
+
+export async function requireVerifiedUser() {
+  const user = await requireUser();
+  if (!user.emailVerified) throw new HttpError(403, 'Confirm your email address first — check your inbox for the link.', 'email_unverified');
+  return user;
+}
+
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== 'admin') throw new HttpError(403, 'Admins only.');
+  return user;
+}
