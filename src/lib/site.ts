@@ -27,6 +27,8 @@ export const limits = {
   issueChunk: 100,
   /** Vercel rejects request bodies above 4.5 MB, so uploads are capped below that. */
   uploadMaxBytes: 4 * 1024 * 1024,
+  /** Re-encoding can enlarge a file, and the stored copy is served back through the same 4.5 MB limit. */
+  storedImageMaxBytes: 4 * 1024 * 1024,
   templatesPerUser: 100,
   assetsPerUser: 200,
   fieldValueMax: 300,
