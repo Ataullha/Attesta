@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { useDialogs } from '@/components/ui/Dialogs';
 import { btn, card, field } from '@/components/ui/styles';
 import { normaliseImageFile } from '@/components/editor/assets';
 import { postJson } from './client-utils';
@@ -12,9 +13,11 @@ const KIND_LABEL: Record<string, string> = { signature: 'Signature', logo: 'Logo
 
 export function Library({ assets }: { assets: Asset[] }) {
   const router = useRouter();
+  const { confirm, toast } = useDialogs();
   const input = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState('signature');
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [urls, setUrls] = useState<Record<string, string>>({});
 
@@ -36,6 +39,25 @@ export function Library({ assets }: { assets: Asset[] }) {
       made.forEach((u) => URL.revokeObjectURL(u));
     };
   }, [assets]);
+
+  async function remove(a: Asset) {
+    const ok = await confirm({
+      title: 'Remove this image?',
+      message: `“${a.name}” will be removed from your library. Certificates already issued keep it.`,
+      confirmLabel: 'Remove image',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    setRemoving(a.id);
+    try {
+      await postJson(`/api/assets/${a.id}`, undefined, 'DELETE');
+      router.refresh();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setRemoving(null);
+    }
+  }
 
   async function upload(file: File) {
     setBusy(true);
@@ -84,11 +106,7 @@ export function Library({ assets }: { assets: Asset[] }) {
                   <span className="block truncate text-[14px] font-medium">{a.name}</span>
                   <span className="text-[12.5px] text-muted">{KIND_LABEL[a.kind]} · {a.width}×{a.height}</span>
                 </span>
-                <button type="button" className={btn.small + ' text-revoked hover:bg-revoked-soft'} onClick={async () => {
-                  if (!confirm('Remove this image from your library? Certificates already issued keep it.')) return;
-                  await postJson(`/api/assets/${a.id}`, undefined, 'DELETE').catch((e) => alert(e.message));
-                  router.refresh();
-                }}>Remove</button>
+                <button type="button" className={btn.small + ' text-revoked hover:bg-revoked-soft'} disabled={removing === a.id} onClick={() => remove(a)}>Remove</button>
               </div>
             </li>
           ))}
