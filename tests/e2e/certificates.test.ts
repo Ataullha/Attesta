@@ -3,6 +3,9 @@ import { Browser, SERIAL, baseUrl, closeDb, design, giveCredits, issue, signUp, 
 
 afterAll(closeDb);
 
+/** An address as written in an HTML attribute, & included. */
+const hrefTo = (html: string, prefix: string) => html.match(new RegExp(`href="(${prefix.replace(/[.?]/g, '\\$&')}[^"]*)"`))?.[1].replaceAll('&amp;', '&');
+
 describe('a certificate, from issuing to revocation', () => {
   let owner: Account;
   let serial = '';
@@ -29,6 +32,22 @@ describe('a certificate, from issuing to revocation', () => {
     expect(page.text).not.toContain('Nusrat Mim');
   });
 
+  it('lets its recipient add it to LinkedIn already filled in, and tells other visitors how to issue their own', async () => {
+    const page = await new Browser().get(`/verify/${serial}`);
+    const add = hrefTo(page.text, 'https://www.linkedin.com/profile/add?');
+    expect(add).toBeDefined();
+    expect(Object.fromEntries(new URL(add!).searchParams)).toMatchObject({
+      startTask: 'CERTIFICATION_NAME',
+      name: 'Foundations of Data Analysis', // the course: its first public text field
+      certId: serial,
+      certUrl: `${baseUrl()}/verify/${serial}`,
+    });
+    expect(hrefTo(page.text, 'https://www.linkedin.com/sharing/share-offsite/?')).toBe(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`${baseUrl()}/verify/${serial}`)}`,
+    );
+    expect(page.text).toContain('Issue certificates people can check like this');
+  });
+
   it('is on its issuer’s dashboard', async () => {
     const page = await owner.browser.get('/app');
     expect(page.text).toContain(serial);
@@ -51,6 +70,7 @@ describe('a certificate, from issuing to revocation', () => {
     expect(page.text).toContain('This certificate was revoked');
     expect(page.text).toContain('Issued to the wrong cohort');
     expect(page.text).not.toContain('Valid certificate');
+    expect(page.text).not.toContain('linkedin.com'); // nothing to show off any more
   });
 
   it('cannot be revoked twice', async () => {

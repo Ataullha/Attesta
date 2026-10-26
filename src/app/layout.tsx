@@ -4,6 +4,10 @@ import '@fontsource/instrument-sans/400.css';
 import '@fontsource/instrument-sans/500.css';
 import '@fontsource/instrument-sans/600.css';
 import '@fontsource/jetbrains-mono/400.css';
+// Bangla faces only: the browser downloads them on pages that contain Bangla text, and never otherwise.
+import '@fontsource/hind-siliguri/bengali-400.css';
+import '@fontsource/hind-siliguri/bengali-600.css';
+import '@fontsource/tiro-bangla/bengali-400.css';
 import './globals.css';
 import { site } from '@/lib/site';
 

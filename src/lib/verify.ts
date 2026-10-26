@@ -10,6 +10,8 @@ export type CertificateView = {
   status: 'valid' | 'revoked' | 'unconfirmed';
   recipient: string;
   fields: { label: string; value: string }[];
+  /** What the certificate is for, as LinkedIn and search engines are told: its first public text field. */
+  credential: string;
   issuedAt: Date;
   revokedAt: Date | null;
   revokeReason: string | null;
@@ -39,11 +41,13 @@ export const getCertificateView = cache(async (raw: string): Promise<Certificate
   const fields = design.fields
     .filter((f) => f.public && f.type !== 'email' && f.key !== 'recipient_name' && values[f.key])
     .map((f) => ({ label: f.label, value: values[f.key] }));
+  const credential = design.fields.find((f) => f.public && f.type === 'text' && f.key !== 'recipient_name' && values[f.key]);
   return {
     serial: c.serial,
     status: c.revokedAt ? 'revoked' : check.ok ? 'valid' : 'unconfirmed',
     recipient: maskName(c.recipientName, c.nameDisplay),
     fields,
+    credential: credential ? values[credential.key] : 'Certificate',
     issuedAt: c.issuedAt,
     revokedAt: c.revokedAt,
     revokeReason: c.revokeReason,

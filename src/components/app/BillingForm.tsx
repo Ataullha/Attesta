@@ -6,9 +6,10 @@ import { btn, field } from '@/components/ui/styles';
 import { formatMoney, packages, paymentMethods } from '@/lib/site';
 import { postJson } from './client-utils';
 
-export function BillingForm() {
+/** `initialPackage` comes from the pricing page's "Buy" buttons (?package=), so the choice carries over. */
+export function BillingForm({ initialPackage }: { initialPackage?: string }) {
   const router = useRouter();
-  const [pkg, setPkg] = useState(packages[0].id);
+  const [pkg, setPkg] = useState(packages.some((p) => p.id === initialPackage) ? initialPackage! : packages[0].id);
   const [method, setMethod] = useState<string>(paymentMethods[0].id);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);

@@ -46,7 +46,9 @@ export function HeaderActions() {
         Sign in
       </Link>
       <Link href="/create" className={btn.primary}>
-        Make a certificate
+        {/* Short on a phone, so the buttons share a row with the logo instead of taking one of their own. */}
+        <span className="sm:hidden">Start free</span>
+        <span className="hidden sm:inline">Make a certificate</span>
       </Link>
     </>
   );

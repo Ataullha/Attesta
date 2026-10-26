@@ -6,6 +6,10 @@ import { site } from '@/lib/site';
 import { SealMark } from '@/components/site/SealMark';
 import { VerifySearch } from '@/components/site/VerifySearch';
 import { ReportForm } from '@/components/site/ReportForm';
+import { JsonLd } from '@/components/site/JsonLd';
+import { ShareCertificate } from '@/components/site/ShareCertificate';
+import { btn } from '@/components/ui/styles';
+import { formatMoney, packages } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,20 +73,32 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
         ? { box: 'border-revoked/30 bg-revoked-soft', text: 'text-revoked', title: 'This certificate was revoked', color: '#9E3B2B' }
         : { box: 'border-brass/30 bg-brass-soft', text: 'text-brass', title: 'The record could not be confirmed', color: '#8A5D28' };
 
+  const url = `${site.url}/verify/${v.serial}`;
+  // LinkedIn's "add a certification" form, filled in: the recipient only has to confirm it.
+  const linkedInAddUrl = `https://www.linkedin.com/profile/add?${new URLSearchParams({
+    startTask: 'CERTIFICATION_NAME',
+    name: v.credential,
+    organizationName: v.issuer.name,
+    issueYear: String(v.issuedAt.getUTCFullYear()),
+    issueMonth: String(v.issuedAt.getUTCMonth() + 1),
+    certUrl: url,
+    certId: v.serial,
+  })}`;
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'EducationalOccupationalCredential',
-    name: v.fields[0]?.value ?? 'Certificate',
+    name: v.credential,
     credentialCategory: 'certificate',
     identifier: v.serial,
     dateCreated: v.issuedAt.toISOString(),
-    url: `${site.url}/verify/${v.serial}`,
+    url,
     recognizedBy: { '@type': v.issuer.kind === 'organization' ? 'Organization' : 'Person', name: v.issuer.name, ...(v.issuer.domain ? { url: `https://${v.issuer.domain}` } : {}) },
   };
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-14">
-      {v.indexable && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />}
+      {v.indexable && <JsonLd data={jsonLd} />}
       <div className={`flex items-start gap-4 border p-5 ${tone.box}`}>
         <SealMark size={44} color={tone.color} className="shrink-0" />
         <div>
@@ -122,6 +138,13 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
         {v.issuer.verified ? ' The issuer proved control of its domain.' : ''}
       </p>
 
+      {v.status === 'valid' && (
+        <section aria-labelledby="share-h" className="mt-8">
+          <h2 id="share-h" className="text-[15px] font-semibold">Is this your certificate? Share the proof</h2>
+          <ShareCertificate url={url} linkedInAddUrl={linkedInAddUrl} />
+        </section>
+      )}
+
       <details className="mt-10 border-t border-rule pt-6">
         <summary className="cursor-pointer text-[15px] font-medium text-ink-2">Report a problem with this certificate</summary>
         <ReportForm serial={v.serial} />
@@ -130,10 +153,20 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
       <div className="mt-12 border-t border-rule pt-8">
         <h2 className="text-[15px] font-semibold">Check another certificate</h2>
         <VerifySearch className="mt-3" />
-        <p className="mt-6 text-[14px] text-muted">
-          Need to issue certificates like this? <Link href="/" className="text-brass underline-offset-2 hover:underline">{site.name} is free to start</Link>.
-        </p>
       </div>
+
+      {v.status !== 'unconfirmed' && (
+        <section aria-labelledby="issue-h" className="mt-12 border border-rule bg-card p-6">
+          <h2 id="issue-h" className="font-serif text-[28px] leading-tight">Issue certificates people can check like this</h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
+            Give every certificate your organisation issues a page like this one, with a QR code that opens it. Free to start, with packages from {formatMoney(packages[0].price)} for bulk issuing.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href="/" className={btn.primary}>See how it works</Link>
+            <Link href="/pricing" className={btn.secondary}>Pricing</Link>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

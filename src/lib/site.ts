@@ -59,6 +59,23 @@ export const paymentMethods = [
 
 export type PaymentMethodId = (typeof paymentMethods)[number]['id'];
 
+/** The payment methods as a phrase for a sentence: "bKash, Nagad or bank transfer". */
+export function paymentMethodsInWords() {
+  // Brand names keep their capitals; a generic method reads in lower case mid-sentence.
+  const names = paymentMethods.map((m) => (m.id === 'bank' ? m.label.toLowerCase() : m.label));
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}` : names[0];
+}
+
 export function formatMoney(amount: number, currency = 'BDT') {
   return `${currency === 'BDT' ? '৳' : currency + ' '}${amount.toLocaleString('en-US')}`;
+}
+
+/** What one certificate costs in a package, to the paisa. */
+export function perCertificate(p: PackageDef) {
+  return Math.round((p.price / p.credits) * 100) / 100;
+}
+
+/** How much less each certificate costs than in the smallest package, as a whole percentage. */
+export function savingVersusSmallest(p: PackageDef) {
+  return Math.round((1 - perCertificate(p) / perCertificate(packages[0])) * 100);
 }

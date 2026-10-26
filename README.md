@@ -94,9 +94,11 @@ For production, create a free account at resend.com, verify your domain, and set
 Accounts then need to confirm their email before issuing, which stops throwaway sign-ups from farming free certificates.
 
 ## Ads (AdSense)
-Set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-XXXXXXXX` and redeploy. Ads show on the landing page and certificate-type pages only.
-Replace the placeholder slot IDs (`1000000001`, `1000000002`) in `src/app/(site)/page.tsx` and
-`src/app/(site)/certificate-maker/[slug]/page.tsx` with slot IDs from your AdSense account.
+Set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-XXXXXXXX` and redeploy. Ads show on the certificate-type pages
+(`/certificate-maker/...`) only, below the article. The landing, pricing and verification pages stay ad-free: they are where
+visitors decide to sign up or pay, and an ad there competes with that. Replace the placeholder slot ID (`1000000002`) in
+`src/app/(site)/certificate-maker/[slug]/page.tsx` with a slot ID from your AdSense account; `<AdSlot>` can be added to other
+pages the same way.
 The content security policy opens up for Google’s ad domains automatically when this variable is set.
 
 ---
@@ -165,6 +167,13 @@ Useful scripts:
 | `npm run db:migrate` | apply migrations |
 | `npm run keys:generate` | new signing keys |
 | `npm run admin:promote -- email` | make an account admin |
+| `npm run previews` | redraw the template pictures in `public/previews/` (needs `npm run dev` running, and Playwright) |
+
+The template pictures on the public pages are images made by the real certificate renderer, so they cost visitors no
+JavaScript. After changing a template in `src/lib/presets.ts`, run `npm run previews` while the development server is up and
+commit the new files; a unit test fails if a template has no picture or a picture of the wrong shape.
+
+If `npm run dev` reloads the page over and over after upgrading Next.js, stop it, delete `.next/dev`, and start it again.
 
 ## Testing
 Tests that touch the database delete and insert rows, so they use their own database and refuse to run against one
@@ -187,7 +196,8 @@ older than the source. GitHub Actions runs the type check, both suites and the b
 
 ## Project map
 ```
-src/app/(site)/        public pages: landing, templates, certificate-maker/[slug], verify, pricing, legal
+src/app/(site)/        public pages: landing, templates, certificate-maker (use cases), verify, pricing, legal
+src/app/preview/       development-only pages that scripts/render-previews.mjs photographs
 src/app/(auth)/        sign in, register, password reset, email confirmation
 src/app/create/        the certificate editor
 src/app/app/           user panel: certificates, batches, bulk, templates, library, organisation, billing, settings
