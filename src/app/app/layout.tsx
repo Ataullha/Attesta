@@ -12,6 +12,7 @@ const nav = [
   { href: '/app/library', label: 'Signatures and images' },
   { href: '/app/organization', label: 'Organisation' },
   { href: '/app/billing', label: 'Packages and billing' },
+  { href: '/app/settings', label: 'Account settings' },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

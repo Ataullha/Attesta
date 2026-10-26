@@ -2,7 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { and, eq, gt } from 'drizzle-orm';
+import { and, count, eq, gt, ne } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { randomToken, sha256Hex } from '@/lib/security/crypto';
 import { HttpError } from '@/lib/security/request';
@@ -44,6 +44,30 @@ export async function createSession(userId: string) {
     path: '/',
     expires: expiresAt,
   });
+}
+
+/** The stored id (a hash) of the session this request is using, or null when it has none. */
+export async function currentSessionId() {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return token && token.length <= 100 ? sha256Hex(token) : null;
+}
+
+/** Sessions the user has that are still valid, other than `keepSessionId`. */
+export async function countOtherSessions(userId: string, keepSessionId: string | null) {
+  const [row] = await db()
+    .select({ n: count() })
+    .from(schema.sessions)
+    .where(and(eq(schema.sessions.userId, userId), gt(schema.sessions.expiresAt, new Date()), keepSessionId ? ne(schema.sessions.id, keepSessionId) : undefined));
+  return Number(row?.n ?? 0);
+}
+
+/** Ends every session of the user except `keepSessionId` (the one making the request). Returns how many ended. */
+export async function endOtherSessions(userId: string, keepSessionId: string | null) {
+  const ended = await db()
+    .delete(schema.sessions)
+    .where(and(eq(schema.sessions.userId, userId), keepSessionId ? ne(schema.sessions.id, keepSessionId) : undefined))
+    .returning({ id: schema.sessions.id });
+  return ended.length;
 }
 
 export async function destroySession() {
