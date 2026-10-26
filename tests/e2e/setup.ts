@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import postgres from 'postgres';
 import type { TestProject } from 'vitest/node';
-import { assertTestDatabase } from '../setup/test-db';
+import { assertTestDatabase, setupError } from '../setup/test-db';
 
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -119,17 +119,17 @@ function tail(path: string, lines = 60) {
  */
 export default async function setup(project: TestProject) {
   const databaseUrl = process.env.TEST_DATABASE_URL;
-  if (!databaseUrl) throw new Error('End-to-end tests need TEST_DATABASE_URL, e.g. postgres://user:pass@127.0.0.1:5432/attesta_test (the name must contain "test").');
+  if (!databaseUrl) throw setupError('End-to-end tests need TEST_DATABASE_URL, e.g. postgres://user:pass@127.0.0.1:5432/attesta_test (the name must contain "test").');
   assertTestDatabase(databaseUrl);
 
   const built = join(root, '.next', 'BUILD_ID');
-  if (!existsSync(built)) throw new Error('There is no production build. Run `npm run build` first.');
+  if (!existsSync(built)) throw setupError('There is no production build. Run `npm run build` first.');
   if (statSync(built).mtimeMs < newestModification(join(root, 'src'))) {
-    throw new Error('The production build is older than the source, so these tests would not be testing it. Run `npm run build` again.');
+    throw setupError('The production build is older than the source, so these tests would not be testing it. Run `npm run build` again.');
   }
 
   const migrate = spawnSync(process.execPath, ['scripts/migrate.mjs'], { cwd: root, env: { ...process.env, DATABASE_URL: databaseUrl, DATABASE_URL_UNPOOLED: '' }, encoding: 'utf8' });
-  if (migrate.status !== 0) throw new Error(`Migrating the test database failed:\n${migrate.stdout}\n${migrate.stderr}`);
+  if (migrate.status !== 0) throw setupError(`Migrating the test database failed:\n${migrate.stdout}\n${migrate.stderr}`);
   // Earlier runs leave their limiter counters behind; start from none.
   const sql = postgres(databaseUrl, { max: 1 });
   await sql`delete from rate_limits`;
@@ -185,17 +185,17 @@ export default async function setup(project: TestProject) {
 
   const deadline = Date.now() + 90_000;
   for (;;) {
-    if (app.exitCode !== null) throw new Error(`The app exited with code ${app.exitCode} before it was ready.\n${tail(logPath)}`);
+    if (app.exitCode !== null) throw setupError(`The app exited with code ${app.exitCode} before it was ready.\n${tail(logPath)}`);
     if (Date.now() > deadline) {
       stop();
-      throw new Error(`The app was not ready after 90 seconds.\n${tail(logPath)}`);
+      throw setupError(`The app was not ready after 90 seconds.\n${tail(logPath)}`);
     }
     try {
       const res = await fetch(`${baseUrl}/api/health`);
       if (res.ok) break;
       if (res.status === 503) {
         stop();
-        throw new Error(`The app started but reports itself unhealthy: ${await res.text()}\n${tail(logPath)}`);
+        throw setupError(`The app started but reports itself unhealthy: ${await res.text()}\n${tail(logPath)}`);
       }
     } catch (err) {
       if (err instanceof Error && err.message.startsWith('The app started')) throw err;

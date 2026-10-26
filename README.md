@@ -142,7 +142,7 @@ Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi.
 
 ## Run locally
 
-Needs Node 20.9 or newer (`.nvmrc` pins 22) and a Postgres database.
+Needs Node 20.9 or newer to run, 22.12 or newer for the tests (`.nvmrc` pins 22), and a Postgres database.
 
 ```bash
 npm install
