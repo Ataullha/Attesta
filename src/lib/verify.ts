@@ -3,7 +3,7 @@ import { cache } from 'react';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { maskName, type Design } from './design';
-import { normalizeSerial, verifyRecord } from './signing';
+import { SERIAL_PATTERN, normalizeSerial, verifyRecord } from './signing';
 
 export type CertificateView = {
   serial: string;
@@ -21,7 +21,7 @@ export type CertificateView = {
 
 export const getCertificateView = cache(async (raw: string): Promise<CertificateView | null> => {
   const serial = normalizeSerial(raw);
-  if (!/^[A-Z]{2,6}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(serial)) return null;
+  if (!SERIAL_PATTERN.test(serial)) return null;
   const rows = await db()
     .select({ c: schema.certificates, design: schema.batches.design, userName: schema.users.name, userCreated: schema.users.createdAt, org: schema.organizations })
     .from(schema.certificates)

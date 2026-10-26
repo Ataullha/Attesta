@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useDialogs } from '@/components/ui/Dialogs';
 import { btn, field } from '@/components/ui/styles';
-import { postJson } from './client-utils';
+import { postJson, useCopy } from './client-utils';
 
 export function LogoutButton() {
   const router = useRouter();
@@ -51,10 +52,10 @@ export function CertificateActions({ serial, verifyUrl, revoked }: { serial: str
   const [revoking, setRevoking] = useState(false);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, copy] = useCopy();
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1">
+    <div className="flex flex-wrap items-center justify-start gap-1 md:justify-end">
       <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={busy} onClick={async () => {
         setBusy(true);
         setError(null);
@@ -62,8 +63,9 @@ export function CertificateActions({ serial, verifyUrl, revoked }: { serial: str
       }}>
         {busy ? 'Building…' : 'PDF'}
       </button>
-      <button type="button" className={btn.small + ' hover:bg-rule/60'} onClick={() => { navigator.clipboard?.writeText(verifyUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
-        {copied ? 'Copied' : 'Copy link'}
+      <button type="button" className={btn.small + ' hover:bg-rule/60'} onClick={() => copy(verifyUrl)}>
+        {copied === 'copied' ? 'Copied' : copied === 'failed' ? 'Could not copy' : 'Copy link'}
+        <span className="sr-only" role="status">{copied === 'copied' ? 'Link copied' : copied === 'failed' ? 'Could not copy the link' : ''}</span>
       </button>
       {!revoked && (
         <button type="button" className={btn.small + ' text-revoked hover:bg-revoked-soft'} onClick={() => setRevoking((v) => !v)}>Revoke</button>
@@ -82,12 +84,13 @@ export function CertificateActions({ serial, verifyUrl, revoked }: { serial: str
           <button className={btn.small + ' bg-revoked text-card'}>Confirm</button>
         </form>
       )}
-      {error && <p role="alert" className="w-full text-right text-[12.5px] text-revoked">{error}</p>}
+      {error && <p role="alert" className="w-full text-[12.5px] text-revoked md:text-right">{error}</p>}
     </div>
   );
 }
 
 export function BatchDownload({ batchId }: { batchId: string }) {
+  const { toast } = useDialogs();
   const [state, setState] = useState<string | null>(null);
   return (
     <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={!!state} onClick={async () => {
@@ -96,7 +99,7 @@ export function BatchDownload({ batchId }: { batchId: string }) {
         const [{ buildPdf, downloadBytes, safeFilename }, { AssetStore }] = await Promise.all([import('@/components/editor/pdf'), import('@/components/editor/assets'), import('@/components/editor/fonts')]);
         const res = await fetch(`/api/batches/${batchId}`);
         const j = await res.json();
-        if (!res.ok) throw new Error(j.error);
+        if (!res.ok) throw new Error(j.error ?? 'Could not load the batch.');
         const jobs = (j.certificates as { serial: string; verifyUrl: string; values: Record<string, string> }[]).map((c) => ({ design: j.design, values: c.values, serial: c.serial, verifyUrl: c.verifyUrl }));
         const assets = new AssetStore();
         const per = 250;
@@ -112,7 +115,7 @@ export function BatchDownload({ batchId }: { batchId: string }) {
           downloadBytes(await zip.generateAsync({ type: 'blob', compression: 'STORE' }), `${safeFilename(j.name)}.zip`, 'application/zip');
         }
       } catch (e) {
-        alert((e as Error).message || 'Download failed.');
+        toast((e as Error).message || 'Download failed.', 'error');
       } finally {
         setState(null);
       }
@@ -124,11 +127,26 @@ export function BatchDownload({ batchId }: { batchId: string }) {
 
 export function DeleteTemplateButton({ id, name }: { id: string; name: string }) {
   const router = useRouter();
+  const { confirm, toast } = useDialogs();
+  const [busy, setBusy] = useState(false);
   return (
-    <button type="button" className={btn.small + ' text-revoked hover:bg-revoked-soft'} onClick={async () => {
-      if (!confirm(`Delete the template “${name}”? Certificates already issued are not affected.`)) return;
-      await postJson(`/api/templates/${id}`, undefined, 'DELETE').catch((e) => alert(e.message));
-      router.refresh();
+    <button type="button" className={btn.small + ' text-revoked hover:bg-revoked-soft'} disabled={busy} onClick={async () => {
+      const ok = await confirm({
+        title: 'Delete this template?',
+        message: `“${name}” will be removed. Certificates already issued from it are not affected.`,
+        confirmLabel: 'Delete template',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      setBusy(true);
+      try {
+        await postJson(`/api/templates/${id}`, undefined, 'DELETE');
+        router.refresh();
+      } catch (e) {
+        toast((e as Error).message, 'error');
+      } finally {
+        setBusy(false);
+      }
     }}>
       Delete
     </button>

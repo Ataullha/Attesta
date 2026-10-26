@@ -169,7 +169,8 @@ export function placeholdersIn(text: string) {
 }
 
 export function fillPlaceholders(text: string, values: Record<string, string>) {
-  return text.replace(PLACEHOLDER, (_, key: string) => values[key] ?? '');
+  // hasOwn: `{{constructor}}` must not pick up Object.prototype.constructor.
+  return text.replace(PLACEHOLDER, (_, key: string) => (Object.hasOwn(values, key) ? values[key] ?? '' : ''));
 }
 
 /** Elements whose pixels differ from one recipient to the next. */
@@ -204,12 +205,24 @@ export function canonicalJson(value: unknown): string {
   return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
 }
 
+/**
+ * The first user-perceived character: a Bangla conjunct such as ক্ষ, an emoji, or a letter plus
+ * its accent stays whole, where `charAt(0)` would cut it. Segmenter is checked for at call time
+ * because this module also loads in browsers that predate it.
+ */
+function firstLetter(text: string) {
+  if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+    for (const { segment } of new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)) return segment;
+  }
+  return Array.from(text)[0] ?? '';
+}
+
 export function maskName(name: string, mode: 'partial' | 'full' | 'hidden') {
   if (mode === 'full') return name;
   if (mode === 'hidden') return 'Name withheld by the issuer';
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0];
-  return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
+  return `${parts[0]} ${firstLetter(parts[parts.length - 1])}.`;
 }
 
 export function slugKey(label: string) {

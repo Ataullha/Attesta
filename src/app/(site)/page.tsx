@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { btn } from '@/components/ui/styles';
 import { TemplateThumb } from '@/components/site/TemplateThumb';
@@ -6,6 +7,8 @@ import { AdSlot } from '@/components/site/AdSlot';
 import { SealMark } from '@/components/site/SealMark';
 import { PRESETS } from '@/lib/presets';
 import { limits, packages, formatMoney, site } from '@/lib/site';
+
+export const metadata: Metadata = { alternates: { canonical: '/' } };
 
 const faqs = [
   {

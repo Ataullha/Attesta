@@ -8,13 +8,14 @@ import { designSchema, type Design, type DesignElement, type ElementType, type F
 import { cleanValues } from '@/lib/values';
 import { site } from '@/lib/site';
 import { btn } from '@/components/ui/styles';
+import { SealMark } from '@/components/site/SealMark';
 import { AssetStore, normaliseImageFile, type ImageRef } from './assets';
 import { buildPdf, downloadBytes, safeFilename } from './pdf';
 import { Stage } from './Stage';
 import { Inspector, type ElementAction } from './Inspector';
 import { LeftPanel } from './LeftPanel';
 import { IssuePanel, type IssueError, type IssueResult } from './IssuePanel';
-import { makeElement, makeText, newId, sampleValues } from './elements';
+import { ELEMENT_LABELS, makeElement, makeText, newId, sampleValues } from './elements';
 import { useHistory } from './useHistory';
 
 export type EditorUser = { name: string; credits: number; freeLeft: number; emailVerified: boolean } | null;
@@ -28,6 +29,25 @@ type Props = {
 };
 
 const PREVIEW_SERIAL = `${site.serialPrefix}-7K2Q-9M4D-X1TB`;
+
+// Undo / redo arrows (Lucide, ISC licence), drawn inline so the header needs no icon package.
+function ArrowIcon({ redo = false }: { redo?: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {redo ? (
+        <>
+          <path d="m15 14 5-5-5-5" />
+          <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+        </>
+      ) : (
+        <>
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 export function Editor({ initialDesign, initialName, templateId: initialTemplateId, user, guestLimit }: Props) {
   const router = useRouter();
@@ -47,6 +67,10 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
   const [progress, setProgress] = useState<string | null>(null);
   const [result, setResult] = useState<IssueResult | null>(null);
   const [error, setError] = useState<IssueError | null>(null);
+  // Below the `lg` breakpoint only one side panel is shown at a time; at `lg` and above both always are.
+  const [panel, setPanel] = useState<'tools' | 'details'>('details');
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<number | undefined>(undefined);
   const assets = useMemo(() => new AssetStore(), []);
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
@@ -71,6 +95,34 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     setNotice(msg);
     window.setTimeout(() => setNotice((n) => (n === msg ? null : n)), 4000);
   }, []);
+
+  // On a narrow screen, tapping an element should show that element's settings, from the top.
+  // (At `lg` the window never scrolls and both panels are visible, so this is a no-op there.)
+  useEffect(() => {
+    if (!selectedId) return;
+    setPanel('details');
+    window.scrollTo({ top: 0 });
+  }, [selectedId]);
+
+  function showPanel(next: 'tools' | 'details') {
+    setPanel(next);
+    // The stage is sticky, so the top of the page puts the start of the chosen panel just beneath it.
+    window.scrollTo({ top: 0 });
+  }
+
+  // A phone keyboard covers half the screen, so the sticky stage gives way while a text field is
+  // being edited; otherwise the field you are typing in can end up hidden behind the stage.
+  useEffect(() => () => window.clearTimeout(typingTimer.current), []);
+  function onFieldFocus(e: React.FocusEvent) {
+    if (!(e.target as HTMLElement).matches('textarea, select, input:not([type=checkbox], [type=radio], [type=range], [type=color], [type=file])')) return;
+    window.clearTimeout(typingTimer.current);
+    setTyping(true);
+  }
+  function onFieldBlur() {
+    // Moving from one field to the next blurs then focuses; waiting avoids a resize flicker in between.
+    window.clearTimeout(typingTimer.current);
+    typingTimer.current = window.setTimeout(() => setTyping(false), 200);
+  }
 
   const patchSelected = useCallback(
     (patch: Partial<DesignElement>, mode: 'live' | 'set') => {
@@ -331,45 +383,127 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     ? `${user.freeLeft} free certificate${user.freeLeft === 1 ? '' : 's'} left this month${user.credits ? ` · ${user.credits.toLocaleString()} package credits` : ''}. Each certificate gets a permanent verification page.`
     : `Without an account you can make ${guestLimit} watermarked certificates. A free account gives you verifiable ones.`;
 
+  const iconButton =
+    'inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-[4px] text-ink-2 transition-colors hover:bg-rule/60 disabled:pointer-events-none disabled:opacity-40 sm:min-w-0 sm:px-2.5 sm:text-[13.5px]';
+
   return (
-    <div className="flex h-dvh flex-col bg-paper">
-      <header className="flex min-h-14 flex-wrap items-center gap-2 border-b border-rule bg-card px-3 py-2 sm:gap-3 sm:px-4">
-        <Link href={user ? '/app' : '/'} className="mr-1 font-serif text-[22px] leading-none text-ink">
-          {site.name}
+    // Below `lg` the page scrolls: a sticky header and stage stay in view while the panels pass beneath.
+    // From `lg` up it is a fixed-height three-column workspace, and a phone held sideways (`short`)
+    // gets a fixed-height two-column one: stage on the left, the chosen panel on the right.
+    <div className="flex min-h-dvh flex-col bg-paper lg:h-dvh short:h-dvh">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-rule bg-card px-3 sm:gap-3 sm:px-4 lg:static short:static">
+        <Link href={user ? '/app' : '/'} className="flex shrink-0 items-center gap-2 text-ink" aria-label={`${site.name} — ${user ? 'your dashboard' : 'home'}`}>
+          <SealMark size={24} color="#8A5D28" />
+          <span className="hidden font-serif text-[22px] leading-none sm:inline">{site.name}</span>
         </Link>
         <span className="hidden h-6 w-px bg-rule sm:block" />
         <label className="min-w-0 flex-1 sm:max-w-xs">
           <span className="sr-only">Template name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className="w-full rounded-[4px] border border-transparent bg-transparent px-2 py-1.5 text-[15px] hover:border-rule focus:border-brass focus:outline-none" />
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className="w-full truncate rounded-[4px] border border-transparent bg-transparent px-2 py-1.5 text-[15px] hover:border-rule focus:border-brass focus:outline-none" />
         </label>
         <span className="hidden text-[12.5px] text-muted md:block" aria-live="polite">
           {user ? (saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes') : 'Guest mode — sign in to save'}
         </span>
-        <div className="ml-auto flex items-center gap-1">
-          <button type="button" className={btn.small + ' text-ink-2 hover:bg-rule/60'} onClick={history.undo} disabled={!history.canUndo} aria-label="Undo">
-            Undo
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+          <button type="button" className={iconButton} onClick={history.undo} disabled={!history.canUndo} aria-label="Undo">
+            <ArrowIcon />
+            <span className="hidden sm:inline">Undo</span>
           </button>
-          <button type="button" className={btn.small + ' text-ink-2 hover:bg-rule/60'} onClick={history.redo} disabled={!history.canRedo} aria-label="Redo">
-            Redo
+          <button type="button" className={iconButton} onClick={history.redo} disabled={!history.canRedo} aria-label="Redo">
+            <ArrowIcon redo />
+            <span className="hidden sm:inline">Redo</span>
           </button>
           <label className="ml-1 hidden items-center gap-1.5 text-[13px] text-ink-2 sm:flex">
             <input type="checkbox" className="h-4 w-4 accent-brass" checked={showBoxes} onChange={(e) => setShowBoxes(e.target.checked)} />
             Show field boxes
           </label>
-          <button type="button" className={btn.small + ' ml-1 bg-ink text-card hover:bg-ink-2'} onClick={save} disabled={saveState === 'saving'}>
-            {user ? 'Save template' : 'Sign in to save'}
+          <button
+            type="button"
+            className={btn.small + ' ml-1 min-h-10 bg-ink px-3.5 text-card hover:bg-ink-2'}
+            onClick={save}
+            disabled={saveState === 'saving'}
+            // The visible label is shortened on phones, so the full meaning is stated once, here.
+            aria-label={user ? (saveState === 'dirty' ? 'Save template (unsaved changes)' : 'Save template') : 'Sign in to save'}
+          >
+            {user ? (
+              <>
+                <span className="sm:hidden">Save</span>
+                <span className="hidden sm:inline">Save template</span>
+              </>
+            ) : (
+              <>
+                <span className="sm:hidden">Sign in</span>
+                <span className="hidden sm:inline">Sign in to save</span>
+              </>
+            )}
+            {user && saveState === 'dirty' && <span className="h-2 w-2 rounded-full bg-gold md:hidden" aria-hidden="true" />}
           </button>
         </div>
       </header>
 
-      {notice && (
-        <div role="status" className="border-b border-brass/30 bg-brass-soft px-4 py-2 text-[13.5px] text-ink">
-          {notice}
-        </div>
-      )}
+      {/* A toast rather than an in-flow banner, so messages never push the stage around. */}
+      <div aria-live="polite" className="pointer-events-none fixed inset-x-3 bottom-4 z-50 flex justify-center">
+        {notice && (
+          <div className="max-w-md rounded-[6px] border border-brass/30 bg-brass-soft px-4 py-2.5 text-[13.5px] text-ink shadow-[0_10px_30px_-12px_rgba(25,23,18,0.5)]">{notice}</div>
+        )}
+      </div>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <aside className="order-2 max-h-[45dvh] shrink-0 border-t border-rule bg-paper lg:order-1 lg:max-h-none lg:w-[300px] lg:border-r lg:border-t-0">
+      <div className="flex flex-1 flex-col lg:min-h-0 lg:flex-row short:min-h-0 short:flex-row">
+        {/* DOM order is the narrow-screen order: stage, then the panels. `lg:order-*` rearranges it into
+            tools | stage | settings on wide screens. */}
+        <main
+          id="main"
+          className={`sticky top-14 z-20 flex shrink-0 flex-col border-b border-rule bg-[#EAE5DA] [@media(max-height:560px)]:static lg:static lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:border-b-0 short:h-auto short:min-w-0 short:flex-1 short:border-b-0 short:border-r ${
+            typing ? 'h-[26dvh]' : 'h-[clamp(220px,44dvh,560px)]'
+          }`}
+        >
+          <div className="min-h-0 flex-1">
+            <Stage
+              design={design}
+              values={previewValues}
+              assets={assets}
+              assetVersion={assetVersion}
+              selectedId={selectedId}
+              showBoxes={showBoxes}
+              onSelect={setSelectedId}
+              onChangeLive={(fn) => history.setLive(fn)}
+              onCommit={history.commit}
+              onEditText={(id) => {
+                setSelectedId(id);
+                setTimeout(() => contentRef.current?.focus(), 30);
+              }}
+            />
+          </div>
+          <div role="group" aria-label="Editor panel" className="flex h-11 shrink-0 items-stretch border-t border-rule bg-card lg:hidden">
+            <button
+              type="button"
+              aria-pressed={panel === 'tools'}
+              onClick={() => showPanel('tools')}
+              className={`flex-1 border-b-2 px-2 text-[14px] ${panel === 'tools' ? 'border-brass font-medium text-ink' : 'border-transparent text-muted'}`}
+            >
+              Design tools
+            </button>
+            <button
+              type="button"
+              aria-pressed={panel === 'details'}
+              onClick={() => showPanel('details')}
+              className={`flex-1 truncate border-b-2 px-2 text-[14px] ${panel === 'details' ? 'border-brass font-medium text-ink' : 'border-transparent text-muted'}`}
+            >
+              {selected ? `Edit ${ELEMENT_LABELS[selected.type].toLowerCase()}` : 'Fill & issue'}
+            </button>
+            <label className="flex items-center gap-1.5 border-l border-rule px-3 text-[12.5px] text-ink-2 sm:hidden">
+              <input type="checkbox" className="h-4 w-4 accent-brass" checked={showBoxes} onChange={(e) => setShowBoxes(e.target.checked)} />
+              Boxes
+            </label>
+          </div>
+        </main>
+
+        <aside
+          aria-label="Design tools"
+          onFocus={onFieldFocus}
+          onBlur={onFieldBlur}
+          className={`${panel === 'tools' ? '' : 'hidden'} bg-paper lg:order-1 lg:block lg:w-[300px] lg:shrink-0 lg:border-r short:w-[340px] short:shrink-0 short:overflow-y-auto`}
+        >
           <LeftPanel
             design={design}
             selectedId={selectedId}
@@ -382,25 +516,12 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
           />
         </aside>
 
-        <main className="order-1 h-[52dvh] min-w-0 flex-1 lg:order-2 lg:h-auto">
-          <Stage
-            design={design}
-            values={previewValues}
-            assets={assets}
-            assetVersion={assetVersion}
-            selectedId={selectedId}
-            showBoxes={showBoxes}
-            onSelect={setSelectedId}
-            onChangeLive={(fn) => history.setLive(fn)}
-            onCommit={history.commit}
-            onEditText={(id) => {
-              setSelectedId(id);
-              setTimeout(() => contentRef.current?.focus(), 30);
-            }}
-          />
-        </main>
-
-        <aside className="order-3 shrink-0 overflow-y-auto border-t border-rule bg-paper lg:w-[330px] lg:border-l lg:border-t-0">
+        <aside
+          aria-label={selected ? 'Element settings' : 'Issue a certificate'}
+          onFocus={onFieldFocus}
+          onBlur={onFieldBlur}
+          className={`${panel === 'details' ? '' : 'hidden'} bg-paper lg:order-3 lg:block lg:w-[330px] lg:shrink-0 lg:overflow-y-auto lg:border-l short:w-[340px] short:shrink-0 short:overflow-y-auto`}
+        >
           {selected ? (
             <Inspector
               el={selected}

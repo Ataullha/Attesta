@@ -36,7 +36,7 @@ export default async function AdminCertificates({ searchParams }: PageProps<'/ad
           <pre className="mt-3 max-h-52 overflow-auto rounded bg-paper p-3 font-mono text-[12px]">{JSON.stringify(row.c.values, null, 2)}</pre>
           <div className="mt-4 flex gap-2">
             <Link href={`/verify/${row.c.serial}`} target="_blank" className={btn.small + ' border border-rule-2'}>Open public page</Link>
-            {!row.c.revokedAt && <AdminAction url={`/api/admin/certificates/${row.c.serial}`} body={{ action: 'revoke' }} label="Revoke" tone="bad" ask="Reason, shown publicly" />}
+            {!row.c.revokedAt && <AdminAction url={`/api/admin/certificates/${row.c.serial}`} body={{ action: 'revoke' }} label="Revoke" tone="bad" ask="Reason, shown publicly" askMin={3} />}
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { Design } from '@/lib/design';
+import { useCopy } from '@/components/app/client-utils';
 import { btn, field } from '@/components/ui/styles';
 
 export type IssueResult = { serial: string; verifyUrl: string; guest: boolean; remaining?: number };
@@ -23,6 +24,7 @@ type Props = {
 };
 
 export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy, progress, result, error, signedIn, quotaNote, templateId }: Props) {
+  const [copied, copy] = useCopy();
   return (
     <div className="text-[14px]">
       <div className="border-b border-rule px-4 py-3">
@@ -122,8 +124,8 @@ export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy,
               <a href={result.verifyUrl} target="_blank" rel="noreferrer" className={btn.small + ' bg-seal text-card hover:bg-[#24553F]'}>
                 Open verification page
               </a>
-              <button type="button" className={btn.small + ' border border-seal/40 text-seal hover:bg-card'} onClick={() => navigator.clipboard?.writeText(result.verifyUrl)}>
-                Copy link
+              <button type="button" className={btn.small + ' border border-seal/40 text-seal hover:bg-card'} onClick={() => copy(result.verifyUrl)}>
+                {copied === 'copied' ? 'Copied' : copied === 'failed' ? 'Could not copy' : 'Copy link'}
               </button>
             </div>
           )}

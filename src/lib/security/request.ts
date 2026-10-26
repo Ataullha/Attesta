@@ -30,13 +30,15 @@ export class HttpError extends Error {
     public status: number,
     message: string,
     public code?: string,
+    /** Seconds until the request may be retried; sent as the Retry-After header. */
+    public retryAfter?: number,
   ) {
     super(message);
   }
 }
 
-export function json(data: unknown, status = 200) {
-  return NextResponse.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
+export function json(data: unknown, status = 200, headers: Record<string, string> = {}) {
+  return NextResponse.json(data, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 }
 
 /** Wraps a route handler with origin checks and uniform error responses. */
@@ -50,7 +52,9 @@ export function route<Ctx = unknown>(
       if (mutating && !isSameOrigin(req)) throw new HttpError(403, 'This request did not come from this site.');
       return await handler(req, ctx);
     } catch (err) {
-      if (err instanceof HttpError) return json({ error: err.message, code: err.code }, err.status);
+      if (err instanceof HttpError) {
+        return json({ error: err.message, code: err.code }, err.status, err.retryAfter ? { 'Retry-After': String(err.retryAfter) } : {});
+      }
       console.error(err);
       return json({ error: 'Something went wrong on our side. Try again in a moment.' }, 500);
     }

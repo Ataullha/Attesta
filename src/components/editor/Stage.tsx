@@ -56,7 +56,9 @@ export function Stage(props: {
   const [guides, setGuides] = useState<Targets>({ v: [], h: [] });
   const W = design.page.width;
   const H = design.page.height;
-  const zoom = Math.max(0.1, Math.min((box.w - 56) / W, (box.h - 56) / H, 2));
+  // Total breathing room around the page: up to 56px on a desktop canvas, tighter on a phone-sized stage.
+  const pad = Math.min(56, Math.max(24, Math.min(box.w, box.h) * 0.06));
+  const zoom = Math.max(0.1, Math.min((box.w - pad) / W, (box.h - pad) / H, 2));
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -162,7 +164,15 @@ export function Stage(props: {
   }
 
   return (
-    <div ref={wrapRef} className="relative h-full w-full overflow-hidden bg-[#EAE5DA]" onPointerDown={() => props.onSelect(null)}>
+    <div
+      ref={wrapRef}
+      className="relative h-full w-full overflow-hidden bg-[#EAE5DA]"
+      // A tap on empty canvas clears the selection. It is a click, not a pointer-down, so starting
+      // to scroll the page with a finger on the stage does not deselect what you were editing.
+      onClick={(e) => {
+        if (!(e.target as HTMLElement).closest('[data-el]')) props.onSelect(null);
+      }}
+    >
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_18px_44px_-20px_rgba(25,23,18,0.35)]" style={{ width: W * zoom, height: H * zoom }}>
         <canvas ref={canvasRef} className="absolute inset-0 block" style={{ width: W * zoom, height: H * zoom }} aria-label="Certificate preview" role="img" />
         <div className="absolute inset-0" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
@@ -173,7 +183,10 @@ export function Stage(props: {
             return (
               <div
                 key={el.id}
-                className={`absolute touch-none ${el.locked ? 'cursor-default' : 'cursor-move'} ${selected ? 'outline outline-[1.5px] outline-brass' : showDashed ? 'outline outline-1 outline-dashed outline-brass/60 hover:outline-brass' : 'hover:outline hover:outline-1 hover:outline-brass/50'}`}
+                data-el={el.id}
+                // Locked boxes cannot be dragged, so a finger on them should still scroll the page.
+                // On touch screens the hit area grows past the box so thin lines and small marks can be tapped.
+                className={`absolute pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-[''] ${el.locked ? 'cursor-default' : 'cursor-move touch-none'} ${selected ? 'outline outline-[1.5px] outline-brass' : showDashed ? 'outline outline-1 outline-dashed outline-brass/60 hover:outline-brass' : 'hover:outline hover:outline-1 hover:outline-brass/50'}`}
                 style={{ left: el.x * zoom, top: el.y * zoom, width: Math.max(el.w * zoom, 4), height: Math.max(el.h * zoom, 4) }}
                 onPointerDown={(e) => start(e, el, 'move')}
                 onDoubleClick={() => el.type === 'text' && props.onEditText(el.id)}
@@ -185,11 +198,12 @@ export function Stage(props: {
                   </span>
                 )}
                 {selected && !el.locked &&
-                  HANDLES.map((dir) => (
+                  // Eight handles on an element that is tiny on screen just overlap; corners alone are enough.
+                  HANDLES.filter((dir) => dir.length === 2 || Math.min(el.w, el.h) * zoom >= 44).map((dir) => (
                     <span
                       key={dir}
                       onPointerDown={(e) => start(e, el, 'resize', dir)}
-                      className="absolute h-[11px] w-[11px] rounded-[2px] border border-brass bg-card"
+                      className="absolute h-[11px] w-[11px] rounded-[2px] border border-brass bg-card pointer-coarse:h-[14px] pointer-coarse:w-[14px] pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
                       style={{
                         cursor: CURSOR[dir],
                         left: dir.includes('w') ? -6 : dir.includes('e') ? 'calc(100% - 5px)' : 'calc(50% - 5.5px)',
@@ -208,8 +222,9 @@ export function Stage(props: {
           ))}
         </div>
       </div>
-      <div className="pointer-events-none absolute bottom-3 left-4 text-[12.5px] text-muted">
-        {Math.round(zoom * 100)}% · drag to move · Shift keeps proportions · Alt turns off snapping
+      <div className="pointer-events-none absolute bottom-2 left-3 text-[12px] text-muted sm:bottom-3 sm:left-4 sm:text-[12.5px]">
+        {Math.round(zoom * 100)}% · drag to move
+        <span className="hidden pointer-fine:inline"> · Shift keeps proportions · Alt turns off snapping</span>
       </div>
     </div>
   );

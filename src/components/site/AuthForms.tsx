@@ -2,18 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { btn, field } from '@/components/ui/styles';
+import { safeNextPath } from '@/lib/safe-redirect';
 
 async function post(url: string, body: unknown) {
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error ?? 'Something went wrong.');
   return j;
-}
-
-function safeNext(next: string | null | undefined) {
-  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
 }
 
 function ErrorLine({ error }: { error: string | null }) {
@@ -31,7 +28,7 @@ export function LoginForm({ next }: { next?: string }) {
     const fd = new FormData(e.currentTarget);
     try {
       const j = await post('/api/auth/login', { email: fd.get('email'), password: fd.get('password') });
-      router.replace(next ? safeNext(next) : j.role === 'admin' ? '/admin' : '/app');
+      router.replace(next ? safeNextPath(next) : j.role === 'admin' ? '/admin' : '/app');
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -66,7 +63,7 @@ export function RegisterForm({ next }: { next?: string }) {
     const fd = new FormData(e.currentTarget);
     try {
       await post('/api/auth/register', { name: fd.get('name'), email: fd.get('email'), password: fd.get('password') });
-      router.replace(safeNext(next));
+      router.replace(safeNextPath(next));
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -150,7 +147,12 @@ export function ResetForm({ token }: { token: string }) {
 export function VerifyEmailRunner({ token }: { token: string }) {
   const [state, setState] = useState<'working' | 'done' | 'error'>('working');
   const [error, setError] = useState('');
+  // The link can be spent once. React Strict Mode runs effects twice in development, and the second
+  // request would turn a successful confirmation into an "already used" error.
+  const sent = useRef(false);
   useEffect(() => {
+    if (sent.current) return;
+    sent.current = true;
     post('/api/auth/verify-email', { token })
       .then(() => setState('done'))
       .catch((e: Error) => {
