@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { and, asc, count, desc, eq, ilike, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUserPage } from '@/lib/auth/session';
+import { certificateFilter } from '@/lib/certificates';
 import { usageThisMonth } from '@/lib/issue';
 import { emailConfigured } from '@/lib/email';
 import { verifyUrl } from '@/lib/signing';
@@ -26,10 +27,7 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
   const q = typeof sp.q === 'string' ? sp.q.trim().slice(0, 80) : '';
   const page = Math.max(1, Number(sp.page) || 1);
 
-  const where = and(
-    eq(schema.certificates.userId, user.id),
-    q ? or(ilike(schema.certificates.recipientName, `%${q}%`), ilike(schema.certificates.serial, `%${q.toUpperCase()}%`)) : undefined,
-  );
+  const where = certificateFilter(user.id, q);
   const [used, [{ total }], [{ all }], certs, batches] = await Promise.all([
     usageThisMonth(user.id),
     db().select({ total: count() }).from(schema.certificates).where(where),
@@ -75,7 +73,10 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
 
       {batches.length > 0 && (
         <section className="mb-10">
-          <h2 className="mb-3 text-[17px] font-semibold">Recent bulk batches</h2>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-[17px] font-semibold">Recent bulk batches</h2>
+            <Link href="/app/batches" className="text-[14px] text-brass underline-offset-2 hover:underline">View all batches</Link>
+          </div>
           <ul className={`${card} divide-y divide-rule`}>
             {batches.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-[14.5px]">
@@ -87,10 +88,18 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
         </section>
       )}
 
-      <form className="mb-4 flex max-w-md gap-2" role="search">
-        <label className="flex-1"><span className="sr-only">Search by name or serial</span><input name="q" defaultValue={q} placeholder="Search by name or serial" className={field.input} /></label>
-        <button className={btn.secondary}>Search</button>
-      </form>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <form className="flex w-full max-w-md gap-2" role="search">
+          <label className="flex-1"><span className="sr-only">Search by name or serial</span><input name="q" defaultValue={q} placeholder="Search by name or serial" className={field.input} /></label>
+          <button className={btn.secondary}>Search</button>
+        </form>
+        {certs.length > 0 && (
+          // A plain link, not <Link>: it is a file download, so the browser should handle it.
+          <a href={`/api/certificates/export${q ? `?q=${encodeURIComponent(q)}` : ''}`} download className={btn.small + ' border border-rule-2 hover:bg-card'}>
+            {q ? 'Export these results as CSV' : 'Export all as CSV'}
+          </a>
+        )}
+      </div>
 
       {certs.length === 0 ? (
         <div className={`${card} p-8 text-center`}>
