@@ -60,6 +60,9 @@ export function verifyRecord(payload: string, contentHash: string, signature: st
 // Crockford base32 without I, L, O, U — easy to read aloud and type from paper.
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
+/** The shape of every serial this app issues (including GUEST-…), used to reject lookups early. */
+export const SERIAL_PATTERN = /^[A-Z]{2,6}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/;
+
 /** 60 random bits: ATT-XXXX-XXXX-XXXX. Never sequential, so records can't be enumerated. */
 export function newSerial(prefix: string = site.serialPrefix) {
   const groups: string[] = [];
@@ -75,8 +78,24 @@ export function newGuestSerial() {
   return newSerial('GUEST');
 }
 
+/**
+ * Turns whatever a person typed or pasted into the canonical serial, so "att 7k2q 9m4d x1tb",
+ * "ATT7K2Q9M4DX1TB" and a serial copied with stray quotes all find ATT-7K2Q-9M4D-X1TB. The
+ * printed serial is tiny and often read aloud, so separators and case must not matter.
+ */
 export function normalizeSerial(input: string) {
-  return input.trim().toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '').slice(0, 40);
+  // NFKC folds full-width forms; the typographic dashes phone keyboards produce are mapped by hand.
+  const upper = input.normalize('NFKC').toUpperCase().replace(/[‐-―−]/g, '-');
+  const flat = upper.replace(/[^A-Z0-9]/g, '');
+  for (const prefix of [site.serialPrefix, 'GUEST']) {
+    if (flat.startsWith(prefix) && flat.length === prefix.length + 12) {
+      // Generated serials never contain I, L or O, so in the body those can only be a mistyped 1 or 0.
+      const body = flat.slice(prefix.length).replace(/[IL]/g, '1').replace(/O/g, '0');
+      return `${prefix}-${body.slice(0, 4)}-${body.slice(4, 8)}-${body.slice(8)}`;
+    }
+  }
+  // Anything else is only tidied, so an unfamiliar serial still gets an accurate "not found".
+  return upper.trim().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '').slice(0, 40);
 }
 
 export function verifyUrl(serial: string) {
