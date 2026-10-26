@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { and, count, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireVerifiedUser } from '@/lib/auth/session';
+import { isUniqueViolation } from '@/lib/security/db-errors';
 import { HttpError, json, readJson, route } from '@/lib/security/request';
 import { rateLimit } from '@/lib/security/rate-limit';
 import { packages, paymentMethods } from '@/lib/site';
@@ -37,8 +38,7 @@ export const POST = route(async (req) => {
       sender: parsed.data.sender,
     });
   } catch (err) {
-    const e = err as { code?: string; cause?: { code?: string } };
-    if (e.code === '23505' || e.cause?.code === '23505') throw new HttpError(409, 'That transaction ID has already been submitted.');
+    if (isUniqueViolation(err)) throw new HttpError(409, 'That transaction ID has already been submitted.');
     throw err;
   }
   return json({ ok: true });

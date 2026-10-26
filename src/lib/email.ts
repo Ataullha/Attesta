@@ -8,18 +8,32 @@ export function emailConfigured() {
 /**
  * Sends through Resend's HTTP API when configured. Without it, links are printed to the
  * server log, which is enough for local development.
+ *
+ * It never throws and gives up after ten seconds: callers send mail after the response has gone
+ * out, and a slow or failing provider must not be able to change what a request answered. The
+ * return value says whether the provider accepted the message.
  */
-export async function sendEmail(to: string, subject: string, text: string) {
+export async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
   if (!emailConfigured()) {
     console.info(`[email:not-configured] to=${to} subject="${subject}"\n${text}`);
-    return;
+    return true;
   }
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM, to, subject, text }),
-  });
-  if (!res.ok) console.error('Email failed', res.status, await res.text().catch(() => ''));
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: process.env.EMAIL_FROM, to, subject, text }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      console.error('Email failed', res.status, await res.text().catch(() => ''));
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Email failed', err);
+    return false;
+  }
 }
 
 export function verifyEmailText(name: string, link: string) {

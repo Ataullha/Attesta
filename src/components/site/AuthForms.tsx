@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { btn, field } from '@/components/ui/styles';
 import { safeNextPath } from '@/lib/safe-redirect';
 
@@ -147,7 +147,12 @@ export function ResetForm({ token }: { token: string }) {
 export function VerifyEmailRunner({ token }: { token: string }) {
   const [state, setState] = useState<'working' | 'done' | 'error'>('working');
   const [error, setError] = useState('');
+  // The link can be spent once. React Strict Mode runs effects twice in development, and the second
+  // request would turn a successful confirmation into an "already used" error.
+  const sent = useRef(false);
   useEffect(() => {
+    if (sent.current) return;
+    sent.current = true;
     post('/api/auth/verify-email', { token })
       .then(() => setState('done'))
       .catch((e: Error) => {

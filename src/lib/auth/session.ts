@@ -21,10 +21,14 @@ export type SessionUser = {
 };
 
 export async function createSession(userId: string) {
+  const jar = await cookies();
+  // A browser that signs in again must not leave its previous session alive on the server.
+  const previous = jar.get(SESSION_COOKIE)?.value;
+  if (previous && previous.length <= 100) await db().delete(schema.sessions).where(eq(schema.sessions.id, sha256Hex(previous)));
+
   const token = randomToken(32);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000);
   await db().insert(schema.sessions).values({ id: sha256Hex(token), userId, expiresAt });
-  const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

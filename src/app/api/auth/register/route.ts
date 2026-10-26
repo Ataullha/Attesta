@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { after } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { createSession } from '@/lib/auth/session';
-import { hashIp, hashPassword, randomToken, sha256Hex } from '@/lib/security/crypto';
+import { issueEmailToken } from '@/lib/auth/tokens';
+import { hashIp, hashPassword } from '@/lib/security/crypto';
+import { isUniqueViolation } from '@/lib/security/db-errors';
 import { clientIp, HttpError, json, readJson, route } from '@/lib/security/request';
 import { rateLimit } from '@/lib/security/rate-limit';
 import { emailConfigured, sendEmail, verifyEmailText } from '@/lib/email';
@@ -15,6 +18,8 @@ const body = z.object({
   password: z.string().min(10, 'Use at least 10 characters').max(200),
 });
 
+const EXISTS = 'An account with this email already exists. Sign in instead.';
+
 export const POST = route(async (req) => {
   const ip = hashIp(await clientIp());
   await rateLimit(`register:${ip}`, 5, 3600);
@@ -23,30 +28,40 @@ export const POST = route(async (req) => {
   const email = parsed.data.email.toLowerCase();
   if (isDisposableEmail(email)) throw new HttpError(400, 'Use a permanent email address — temporary inboxes are not accepted.');
 
+  // A cheap early answer that also skips the (deliberately slow) password hash for a known address.
   const existing = await db().select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
-  if (existing.length) throw new HttpError(409, 'An account with this email already exists. Sign in instead.');
+  if (existing.length) throw new HttpError(409, EXISTS);
 
-  const [user] = await db()
-    .insert(schema.users)
-    .values({
-      name: parsed.data.name,
-      email,
-      passwordHash: await hashPassword(parsed.data.password),
-      // Without an email provider there is no way to confirm addresses, so accounts start confirmed.
-      emailVerifiedAt: emailConfigured() ? null : new Date(),
-    })
-    .returning({ id: schema.users.id });
-
-  if (emailConfigured()) {
-    const token = randomToken(32);
-    await db().insert(schema.emailTokens).values({
-      id: sha256Hex(token),
-      userId: user.id,
-      purpose: 'verify',
-      expiresAt: new Date(Date.now() + 86400_000),
+  const passwordHash = await hashPassword(parsed.data.password);
+  const mailable = emailConfigured();
+  let created: { id: string; verifyToken: string | null };
+  try {
+    // The account and its confirmation token are created together or not at all.
+    created = await db().transaction(async (tx) => {
+      const [user] = await tx
+        .insert(schema.users)
+        .values({
+          name: parsed.data.name,
+          email,
+          passwordHash,
+          // Without an email provider there is no way to confirm addresses, so accounts start confirmed.
+          emailVerifiedAt: mailable ? null : new Date(),
+        })
+        .returning({ id: schema.users.id });
+      return { id: user.id, verifyToken: mailable ? await issueEmailToken(user.id, 'verify', tx) : null };
     });
-    await sendEmail(email, `Confirm your email for ${site.name}`, verifyEmailText(parsed.data.name, `${site.url}/verify-email?token=${token}`));
+  } catch (err) {
+    // Two sign-ups for one address can both pass the check above; the unique index is what decides.
+    if (isUniqueViolation(err)) throw new HttpError(409, EXISTS);
+    throw err;
   }
-  await createSession(user.id);
-  return json({ ok: true, needsVerification: emailConfigured() });
+
+  // Sent once the response is on its way, so a slow or failing mail provider cannot fail the sign-up.
+  // (The dashboard offers "send the link again" if it never arrives.)
+  if (created.verifyToken) {
+    const link = `${site.url}/verify-email?token=${created.verifyToken}`;
+    after(() => sendEmail(email, `Confirm your email for ${site.name}`, verifyEmailText(parsed.data.name, link)));
+  }
+  await createSession(created.id);
+  return json({ ok: true, needsVerification: mailable });
 });
