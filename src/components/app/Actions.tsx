@@ -54,7 +54,7 @@ export function CertificateActions({ serial, verifyUrl, revoked }: { serial: str
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1">
+    <div className="flex flex-wrap items-center justify-start gap-1 md:justify-end">
       <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={busy} onClick={async () => {
         setBusy(true);
         setError(null);
@@ -82,7 +82,7 @@ export function CertificateActions({ serial, verifyUrl, revoked }: { serial: str
           <button className={btn.small + ' bg-revoked text-card'}>Confirm</button>
         </form>
       )}
-      {error && <p role="alert" className="w-full text-right text-[12.5px] text-revoked">{error}</p>}
+      {error && <p role="alert" className="w-full text-[12.5px] text-revoked md:text-right">{error}</p>}
     </div>
   );
 }

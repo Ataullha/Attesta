@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { and, count, desc, eq, ilike, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, or } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUserPage } from '@/lib/auth/session';
 import { usageThisMonth } from '@/lib/issue';
@@ -12,6 +12,13 @@ import { PageTitle } from '@/components/app/Shell';
 import { BatchDownload, CertificateActions, ResendVerification } from '@/components/app/Actions';
 
 const PER_PAGE = 25;
+
+/**
+ * Column template shared by the certificate list's header and rows from `xl` up; below that each
+ * certificate is a stacked card. The last two tracks are fixed, not `auto`: `auto` sizes to the
+ * content of each separate grid, so the header and the rows would not line up.
+ */
+const CERT_COLS = 'xl:grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px_232px] xl:items-start xl:gap-x-4';
 
 export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
   const user = await requireUserPage('/app');
@@ -32,7 +39,9 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
       .from(schema.certificates)
       .innerJoin(schema.batches, eq(schema.batches.id, schema.certificates.batchId))
       .where(where)
-      .orderBy(desc(schema.certificates.issuedAt))
+      // Every certificate in a bulk batch shares one issuedAt, and Postgres does not promise a stable
+      // order among ties, so without a tiebreaker LIMIT/OFFSET pages are not guaranteed to line up.
+      .orderBy(desc(schema.certificates.issuedAt), asc(schema.certificates.serial))
       .limit(PER_PAGE)
       .offset((page - 1) * PER_PAGE),
     db()
@@ -58,10 +67,10 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
         </div>
       )}
 
-      <dl className="mb-10 grid gap-px overflow-hidden border border-rule bg-rule sm:grid-cols-3">
-        <div className="bg-card p-5"><dt className="text-[13.5px] text-muted">Free left this month</dt><dd className="mt-1 font-serif text-[36px] leading-none">{freeLeft} <span className="text-[18px] text-muted">of {limits.freeMonthly}</span></dd></div>
-        <div className="bg-card p-5"><dt className="text-[13.5px] text-muted">Package credits</dt><dd className="mt-1 font-serif text-[36px] leading-none">{user.credits.toLocaleString()}</dd>{user.credits === 0 && <Link href="/app/billing" className="mt-1 inline-block text-[13.5px] text-brass underline">Buy a package</Link>}</div>
-        <div className="bg-card p-5"><dt className="text-[13.5px] text-muted">Issued in total</dt><dd className="mt-1 font-serif text-[36px] leading-none">{Number(all).toLocaleString()}</dd></div>
+      <dl className="mb-10 grid grid-cols-3 gap-px overflow-hidden border border-rule bg-rule">
+        <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Free left this month</dt><dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{freeLeft} <span className="text-[15px] text-muted sm:text-[18px]">of {limits.freeMonthly}</span></dd></div>
+        <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Package credits</dt><dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{user.credits.toLocaleString()}</dd>{user.credits === 0 && <Link href="/app/billing" className="mt-1 inline-block text-[12.5px] text-brass underline sm:text-[13.5px]">Buy a package</Link>}</div>
+        <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Issued in total</dt><dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{Number(all).toLocaleString()}</dd></div>
       </dl>
 
       {batches.length > 0 && (
@@ -89,29 +98,48 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
           {!q && <Link href="/create" className={btn.primary + ' mt-4'}>Make your first certificate</Link>}
         </div>
       ) : (
-        <div className={`${card} overflow-x-auto`}>
-          <table className="w-full min-w-[720px] text-left text-[14.5px]">
-            <thead>
-              <tr className="border-b border-rule text-[13px] text-muted">
-                <th className="px-4 py-3 font-medium">Recipient</th>
-                <th className="px-4 py-3 font-medium">Serial</th>
-                <th className="px-4 py-3 font-medium">Issued</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-rule">
-              {certs.map((c) => (
-                <tr key={c.serial} className="align-top">
-                  <td className="px-4 py-3"><span className="font-medium">{c.name}</span><span className="block text-[12.5px] text-muted">{c.batch}</span></td>
-                  <td className="px-4 py-3"><Link href={`/verify/${c.serial}`} className="font-mono text-[13px] hover:text-brass" target="_blank">{c.serial}</Link></td>
-                  <td className="px-4 py-3 text-ink-2">{formatDate(c.issuedAt)}</td>
-                  <td className="px-4 py-3">{c.revokedAt ? <span className="rounded-full bg-revoked-soft px-2.5 py-0.5 text-[12.5px] text-revoked">Revoked</span> : <span className="rounded-full bg-seal-soft px-2.5 py-0.5 text-[12.5px] text-seal">Valid</span>}</td>
-                  <td className="px-4 py-3"><CertificateActions serial={c.serial} verifyUrl={verifyUrl(c.serial)} revoked={!!c.revokedAt} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        // A list rather than a table: one set of markup is a row of aligned columns from `md` up and a
+        // stacked card per certificate below it, so Status and the actions (Revoke, PDF…) are never
+        // pushed off a phone's screen. The stateful action buttons are rendered once, not per layout.
+        <div className={card}>
+          <div className={`hidden border-b border-rule px-4 py-3 text-[13px] text-muted xl:grid ${CERT_COLS}`} aria-hidden="true">
+            <span>Recipient</span>
+            <span>Serial</span>
+            <span>Issued</span>
+            <span>Status</span>
+            <span />
+          </div>
+          <ul className="divide-y divide-rule">
+            {certs.map((c) => {
+              const status = c.revokedAt ? (
+                <span className="rounded-full bg-revoked-soft px-2.5 py-0.5 text-[12.5px] text-revoked">Revoked</span>
+              ) : (
+                <span className="rounded-full bg-seal-soft px-2.5 py-0.5 text-[12.5px] text-seal">Valid</span>
+              );
+              return (
+                <li key={c.serial} className={`px-4 py-3.5 text-[14.5px] ${CERT_COLS}`}>
+                  <div className="flex items-start justify-between gap-3 xl:block">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{c.name}</p>
+                      <p className="break-words text-[12.5px] text-muted">{c.batch}</p>
+                    </div>
+                    <span className="shrink-0 xl:hidden">{status}</span>
+                  </div>
+                  {/* `contents` hands these four to the grid on wide screens; below that they are one wrapping row. */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-2 xl:contents">
+                    <Link href={`/verify/${c.serial}`} className="font-mono text-[13px] hover:text-brass" target="_blank">
+                      {c.serial}
+                    </Link>
+                    <span className="text-[13.5px] text-ink-2 xl:text-[14.5px]">{formatDate(c.issuedAt)}</span>
+                    <div className="hidden xl:block">{status}</div>
+                    <div className="w-full md:ml-auto md:w-auto xl:ml-0 xl:w-full">
+                      <CertificateActions serial={c.serial} verifyUrl={verifyUrl(c.serial)} revoked={!!c.revokedAt} />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
