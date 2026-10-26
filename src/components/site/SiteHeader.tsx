@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { site } from '@/lib/site';
-import { btn } from '@/components/ui/styles';
+import { HeaderActions } from './HeaderActions';
 import { SealMark } from './SealMark';
 
-export function SiteHeader({ signedIn = false }: { signedIn?: boolean }) {
+export function SiteHeader() {
   return (
     <header className="border-b border-rule bg-paper/95">
       <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
@@ -17,14 +17,7 @@ export function SiteHeader({ signedIn = false }: { signedIn?: boolean }) {
           <Link href="/pricing" className="hover:text-ink">Pricing</Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          {signedIn ? (
-            <Link href="/app" className={btn.primary}>Dashboard</Link>
-          ) : (
-            <>
-              <Link href="/login" className={btn.ghost}>Sign in</Link>
-              <Link href="/create" className={btn.primary}>Make a certificate</Link>
-            </>
-          )}
+          <HeaderActions />
         </div>
       </div>
     </header>

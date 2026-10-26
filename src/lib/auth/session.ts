@@ -6,6 +6,7 @@ import { and, eq, gt } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { randomToken, sha256Hex } from '@/lib/security/crypto';
 import { HttpError } from '@/lib/security/request';
+import { PRESENCE_COOKIE } from './presence';
 
 export const SESSION_COOKIE = 'att_session';
 const SESSION_DAYS = 30;
@@ -31,6 +32,14 @@ export async function createSession(userId: string) {
     path: '/',
     expires: expiresAt,
   });
+  // Not httpOnly on purpose: see ./presence.ts. It holds no secret.
+  jar.set(PRESENCE_COOKIE, '1', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    expires: expiresAt,
+  });
 }
 
 export async function destroySession() {
@@ -38,6 +47,7 @@ export async function destroySession() {
   const token = jar.get(SESSION_COOKIE)?.value;
   if (token) await db().delete(schema.sessions).where(eq(schema.sessions.id, sha256Hex(token)));
   jar.delete(SESSION_COOKIE);
+  jar.delete(PRESENCE_COOKIE);
 }
 
 /** The signed-in user for this request, or null. Cached per request. */
