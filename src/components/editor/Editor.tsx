@@ -388,9 +388,10 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
 
   return (
     // Below `lg` the page scrolls: a sticky header and stage stay in view while the panels pass beneath.
-    // From `lg` up it is a fixed-height three-column workspace.
-    <div className="flex min-h-dvh flex-col bg-paper lg:h-dvh">
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-rule bg-card px-3 sm:gap-3 sm:px-4 lg:static">
+    // From `lg` up it is a fixed-height three-column workspace, and a phone held sideways (`short`)
+    // gets a fixed-height two-column one: stage on the left, the chosen panel on the right.
+    <div className="flex min-h-dvh flex-col bg-paper lg:h-dvh short:h-dvh">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-rule bg-card px-3 sm:gap-3 sm:px-4 lg:static short:static">
         <Link href={user ? '/app' : '/'} className="flex shrink-0 items-center gap-2 text-ink" aria-label={`${site.name} — ${user ? 'your dashboard' : 'home'}`}>
           <SealMark size={24} color="#8A5D28" />
           <span className="hidden font-serif text-[22px] leading-none sm:inline">{site.name}</span>
@@ -447,12 +448,12 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
         )}
       </div>
 
-      <div className="flex flex-1 flex-col lg:min-h-0 lg:flex-row">
+      <div className="flex flex-1 flex-col lg:min-h-0 lg:flex-row short:min-h-0 short:flex-row">
         {/* DOM order is the narrow-screen order: stage, then the panels. `lg:order-*` rearranges it into
             tools | stage | settings on wide screens. */}
         <main
           id="main"
-          className={`sticky top-14 z-20 flex shrink-0 flex-col border-b border-rule bg-[#EAE5DA] [@media(max-height:560px)]:static lg:static lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:border-b-0 ${
+          className={`sticky top-14 z-20 flex shrink-0 flex-col border-b border-rule bg-[#EAE5DA] [@media(max-height:560px)]:static lg:static lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:border-b-0 short:h-auto short:min-w-0 short:flex-1 short:border-b-0 short:border-r ${
             typing ? 'h-[26dvh]' : 'h-[clamp(220px,44dvh,560px)]'
           }`}
         >
@@ -501,7 +502,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
           aria-label="Design tools"
           onFocus={onFieldFocus}
           onBlur={onFieldBlur}
-          className={`${panel === 'tools' ? '' : 'hidden'} bg-paper lg:order-1 lg:block lg:w-[300px] lg:shrink-0 lg:border-r`}
+          className={`${panel === 'tools' ? '' : 'hidden'} bg-paper lg:order-1 lg:block lg:w-[300px] lg:shrink-0 lg:border-r short:w-[340px] short:shrink-0 short:overflow-y-auto`}
         >
           <LeftPanel
             design={design}
@@ -519,7 +520,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
           aria-label={selected ? 'Element settings' : 'Issue a certificate'}
           onFocus={onFieldFocus}
           onBlur={onFieldBlur}
-          className={`${panel === 'details' ? '' : 'hidden'} bg-paper lg:order-3 lg:block lg:w-[330px] lg:shrink-0 lg:overflow-y-auto lg:border-l`}
+          className={`${panel === 'details' ? '' : 'hidden'} bg-paper lg:order-3 lg:block lg:w-[330px] lg:shrink-0 lg:overflow-y-auto lg:border-l short:w-[340px] short:shrink-0 short:overflow-y-auto`}
         >
           {selected ? (
             <Inspector
