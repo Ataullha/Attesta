@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth/session';
 import { DesignComesWithYou, RegisterForm } from '@/components/site/AuthForms';
+import { GoogleButton } from '@/components/site/GoogleButton';
+import { googleConfigured } from '@/lib/auth/google';
 import { Tick } from '@/components/site/Tick';
 import { safeNextPath } from '@/lib/safe-redirect';
 import { DRAFT_RETURN } from '@/components/editor/draft';
@@ -38,6 +40,7 @@ export default async function RegisterPage({ searchParams }: PageProps<'/registe
             Sign in
           </Link>
         </p>
+        {googleConfigured() && <GoogleButton next={next} divider="or sign up with your email" />}
         <RegisterForm next={next} />
       </div>
       <section aria-labelledby="free-h" className="border-t border-rule pt-10 lg:mt-2 lg:border-l lg:border-t-0 lg:pl-16 lg:pt-0">

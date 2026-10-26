@@ -1,4 +1,5 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { closeSync, existsSync, mkdtempSync, openSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { createServer as createSocketServer, type AddressInfo } from 'node:net';
@@ -14,6 +15,8 @@ declare module 'vitest' {
     baseUrl: string;
     /** The stand-in mail provider the app posts to (see startMailServer). */
     mailUrl: string;
+    /** The stand-in for Google's sign-in endpoints (see startGoogleServer). */
+    googleUrl: string;
     databaseUrl: string;
   }
 }
@@ -92,6 +95,78 @@ function startMailServer(port: number): Promise<Server> {
   return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve(server)));
 }
 
+export const GOOGLE_CLIENT = { id: 'e2e-client.apps.googleusercontent.com', secret: 'e2e-google-secret' };
+
+/**
+ * A stand-in for Google's sign-in (OpenID Connect) endpoints, as strict as Google about what the app
+ * sends: its client id and secret, the redirect address, PKCE, and that a code is used once.
+ * A test plays the person at Google's consent screen by adding `as` (who they are: base64url JSON,
+ * with `claims` to override anything in the ID token) or `deny=1` to the address the app sent the
+ * browser to; the stand-in then sends the browser back as Google would.
+ *
+ *   GET  /auth     where the app sends the browser
+ *   POST /token    what the app calls to trade the code for an ID token
+ */
+function startGoogleServer(port: number, redirectUri: string): Promise<Server> {
+  type Grant = { identity: Record<string, unknown>; nonce: string; challenge: string; used: boolean };
+  const grants = new Map<string, Grant>();
+  const reply = (res: ServerResponse, status: number, body: unknown = {}) => {
+    res.writeHead(status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(body));
+  };
+  const handle = (req: IncomingMessage, res: ServerResponse, url: URL, body: string) => {
+    if (req.method === 'GET' && url.pathname === '/auth') {
+      const p = url.searchParams;
+      const wrong = [
+        p.get('client_id') !== GOOGLE_CLIENT.id && 'client_id',
+        p.get('redirect_uri') !== redirectUri && 'redirect_uri',
+        p.get('response_type') !== 'code' && 'response_type',
+        !(p.get('scope') ?? '').split(' ').includes('openid') && 'scope',
+        p.get('code_challenge_method') !== 'S256' && 'code_challenge_method',
+        !p.get('code_challenge') && 'code_challenge',
+        !p.get('state') && 'state',
+        !p.get('nonce') && 'nonce',
+      ].filter(Boolean);
+      if (wrong.length) return reply(res, 400, { error: 'invalid_request', wrong });
+      const back = new URL(redirectUri);
+      if (p.get('deny')) back.searchParams.set('error', 'access_denied');
+      else {
+        const code = `e2e-code-${grants.size + 1}-${Math.random().toString(36).slice(2)}`;
+        const identity = JSON.parse(Buffer.from(p.get('as') ?? '', 'base64url').toString('utf8') || '{}') as Record<string, unknown>;
+        grants.set(code, { identity, nonce: p.get('nonce')!, challenge: p.get('code_challenge')!, used: false });
+        back.searchParams.set('code', code);
+      }
+      back.searchParams.set('state', p.get('state')!);
+      res.writeHead(302, { location: back.toString() });
+      return res.end();
+    }
+    if (req.method === 'POST' && url.pathname === '/token') {
+      const f = new URLSearchParams(body);
+      if (f.get('client_id') !== GOOGLE_CLIENT.id || f.get('client_secret') !== GOOGLE_CLIENT.secret) return reply(res, 401, { error: 'invalid_client' });
+      const grant = grants.get(f.get('code') ?? '');
+      if (f.get('grant_type') !== 'authorization_code' || f.get('redirect_uri') !== redirectUri || !grant || grant.used) return reply(res, 400, { error: 'invalid_grant' });
+      if (createHash('sha256').update(f.get('code_verifier') ?? '').digest('base64url') !== grant.challenge) return reply(res, 400, { error: 'invalid_grant', error_description: 'code_verifier' });
+      grant.used = true;
+      const now = Math.floor(Date.now() / 1000);
+      const { claims, ...person } = grant.identity as { claims?: Record<string, unknown> };
+      const payload = { iss: 'https://accounts.google.com', azp: GOOGLE_CLIENT.id, aud: GOOGLE_CLIENT.id, email_verified: true, iat: now, exp: now + 3600, nonce: grant.nonce, ...person, ...claims };
+      const part = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      return reply(res, 200, { access_token: 'e2e-access', token_type: 'Bearer', expires_in: 3599, scope: 'openid email profile', id_token: `${part({ alg: 'RS256', kid: 'e2e' })}.${part(payload)}.e2e-signature` });
+    }
+    return reply(res, 404);
+  };
+  const server = createServer(async (req, res) => {
+    const url = new URL(req.url ?? '/', 'http://google.invalid');
+    const body = await readBody(req);
+    try {
+      handle(req, res, url, body);
+    } catch {
+      reply(res, 400, { error: 'bad request' });
+    }
+  });
+  return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve(server)));
+}
+
 function newestModification(dir: string): number {
   let newest = 0;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -112,7 +187,7 @@ function tail(path: string, lines = 60) {
 /**
  * Starts the built app and everything around it, once, for every end-to-end test file:
  *   1. the test database, migrated;
- *   2. the mail stand-in;
+ *   2. the mail stand-in and the Google stand-in;
  *   3. `next start` on a free port, with its own freshly generated signing keys.
  *
  * Needs TEST_DATABASE_URL (a database whose name contains "test") and a current `npm run build`.
@@ -143,10 +218,12 @@ export default async function setup(project: TestProject) {
       .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]),
   );
 
-  const [appPort, mailPort] = [await freePort(), await freePort()];
+  const [appPort, mailPort, googlePort] = [await freePort(), await freePort(), await freePort()];
   const baseUrl = `http://127.0.0.1:${appPort}`;
   const mailUrl = `http://127.0.0.1:${mailPort}`;
+  const googleUrl = `http://127.0.0.1:${googlePort}`;
   const mail = await startMailServer(mailPort);
+  const google = await startGoogleServer(googlePort, `${baseUrl}/api/auth/google/callback`);
 
   const logPath = join(mkdtempSync(join(tmpdir(), 'attesta-e2e-')), 'server.log');
   const log = openSync(logPath, 'a');
@@ -171,6 +248,10 @@ export default async function setup(project: TestProject) {
       RESEND_API_KEY: 'e2e-key',
       EMAIL_FROM: 'Attesta <no-reply@e2e.invalid>',
       RESEND_API_URL: `${mailUrl}/emails`,
+      GOOGLE_CLIENT_ID: GOOGLE_CLIENT.id,
+      GOOGLE_CLIENT_SECRET: GOOGLE_CLIENT.secret,
+      GOOGLE_AUTH_URL: `${googleUrl}/auth`,
+      GOOGLE_TOKEN_URL: `${googleUrl}/token`,
     },
   });
   closeSync(log);
@@ -205,11 +286,13 @@ export default async function setup(project: TestProject) {
 
   project.provide('baseUrl', baseUrl);
   project.provide('mailUrl', mailUrl);
+  project.provide('googleUrl', googleUrl);
   project.provide('databaseUrl', databaseUrl);
 
   return async function teardown() {
     stop();
     await new Promise((r) => mail.close(r));
+    await new Promise((r) => google.close(r));
     console.info(`\nThe app's own log for this run: ${logPath}`);
   };
 }

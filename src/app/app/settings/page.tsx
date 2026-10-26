@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { countOtherSessions, currentSessionId, requireUserPage } from '@/lib/auth/session';
 import { emailConfigured } from '@/lib/email';
@@ -7,14 +7,18 @@ import { formatDate } from '@/lib/verify';
 import { card } from '@/components/ui/styles';
 import { PageTitle } from '@/components/app/Shell';
 import { ResendVerification } from '@/components/app/Actions';
-import { PasswordForm, SignOutElsewhere } from '@/components/app/SettingsForms';
+import { AddPasswordByEmail, PasswordForm, SignOutElsewhere } from '@/components/app/SettingsForms';
 
 export const metadata: Metadata = { title: 'Account settings' };
 
 export default async function SettingsPage() {
   const user = await requireUserPage('/app/settings');
   const [[row], others] = await Promise.all([
-    db().select({ createdAt: schema.users.createdAt }).from(schema.users).where(eq(schema.users.id, user.id)).limit(1),
+    db()
+      .select({ createdAt: schema.users.createdAt, hasPassword: sql<boolean>`${schema.users.passwordHash} is not null`, google: sql<boolean>`${schema.users.googleSub} is not null` })
+      .from(schema.users)
+      .where(eq(schema.users.id, user.id))
+      .limit(1),
     currentSessionId().then((keep) => countOtherSessions(user.id, keep)),
   ]);
 
@@ -48,6 +52,12 @@ export default async function SettingsPage() {
             </div>
             {row && (
               <div className="grid gap-1 sm:grid-cols-[140px_1fr]">
+                <dt className="text-muted">Signs in with</dt>
+                <dd>{row.google && row.hasPassword ? 'Google, or email and password' : row.google ? 'Google' : 'Email and password'}</dd>
+              </div>
+            )}
+            {row && (
+              <div className="grid gap-1 sm:grid-cols-[140px_1fr]">
                 <dt className="text-muted">Member since</dt>
                 <dd>{formatDate(row.createdAt)}</dd>
               </div>
@@ -61,8 +71,19 @@ export default async function SettingsPage() {
 
         <section className={`${card} p-6`} aria-labelledby="password-h">
           <h2 id="password-h" className="font-serif text-[26px] leading-none">Password</h2>
-          <p className="mb-5 mt-2 text-[15px] text-ink-2">Changing it signs out your other devices; this one stays signed in.</p>
-          <PasswordForm />
+          {row && !row.hasPassword ? (
+            <>
+              <p className="mb-5 mt-2 text-[15px] leading-relaxed text-ink-2">
+                You sign in with Google, so this account has no password. Add one to be able to sign in with your email address as well.
+              </p>
+              {emailConfigured() ? <AddPasswordByEmail email={user.email} /> : <p className="text-[15px] text-ink-2">To add one, write to support.</p>}
+            </>
+          ) : (
+            <>
+              <p className="mb-5 mt-2 text-[15px] text-ink-2">Changing it signs out your other devices; this one stays signed in.</p>
+              <PasswordForm />
+            </>
+          )}
         </section>
 
         <section className={`${card} p-6`} aria-labelledby="devices-h">

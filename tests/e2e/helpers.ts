@@ -4,6 +4,7 @@ import { presetDesign } from '@/lib/presets';
 
 export const baseUrl = () => inject('baseUrl');
 const mailUrl = () => inject('mailUrl');
+export const googleUrl = () => inject('googleUrl');
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const PASSWORD = 'correct horse battery staple';
@@ -192,3 +193,34 @@ export function issue(browser: Browser, names: string[], mode: 'single' | 'bulk'
 }
 
 export const SERIAL = /^ATT-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/;
+
+// ---------------------------------------------------------------------------------------------
+// Google. The person's part, at Google's consent screen, is played against the stand-in (setup.ts).
+// ---------------------------------------------------------------------------------------------
+
+export type GooglePerson = { sub: string; email: string; name?: string; email_verified?: boolean; claims?: Record<string, unknown> };
+let googleCounter = 0;
+export const googlePerson = (label = 'google', extra: Partial<GooglePerson> = {}): GooglePerson => ({
+  sub: `${Date.now()}${++googleCounter}`,
+  email: uniqueEmail(label),
+  name: 'Google Person',
+  ...extra,
+});
+
+/**
+ * "Continue with Google" as a browser does it: the app sends it to Google, the person chooses an
+ * account (or `deny`s), and Google sends it back. Returns the app's answer to that return, which is a
+ * redirect: into the app, or to the sign-in page with the reason.
+ */
+export async function continueWithGoogle(browser: Browser, person: GooglePerson | 'deny', next?: string) {
+  const start = await browser.get(`/api/auth/google${next ? `?next=${encodeURIComponent(next)}` : ''}`);
+  if (start.status !== 307) throw new Error(`Starting Google sign-in answered ${start.status}: ${start.text.slice(0, 200)}`);
+  const atGoogle = new URL(start.headers.get('location')!);
+  if (person === 'deny') atGoogle.searchParams.set('deny', '1');
+  else atGoogle.searchParams.set('as', Buffer.from(JSON.stringify(person)).toString('base64url'));
+  const consent = await fetch(atGoogle, { redirect: 'manual' });
+  if (consent.status !== 302) throw new Error(`The Google stand-in refused the request the app made: ${consent.status} ${await consent.text()}`);
+  const back = new URL(consent.headers.get('location')!);
+  // Google's redirect back is a navigation from another site, so it carries no Origin of ours.
+  return browser.get(back.pathname + back.search, { sameOrigin: false, headers: { 'Sec-Fetch-Site': 'cross-site' } });
+}

@@ -81,6 +81,36 @@ export function PasswordForm() {
   );
 }
 
+/** For an account that signs in with Google only: emails a link to choose a password, as "Forgot your password?" does. */
+export function AddPasswordByEmail({ email }: { email: string }) {
+  const [msg, setMsg] = useState<Message>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        className={btn.secondary}
+        disabled={busy || !!msg?.ok}
+        onClick={async () => {
+          setBusy(true);
+          setMsg(null);
+          try {
+            await postJson('/api/auth/forgot', { email });
+            setMsg({ ok: true, text: `We sent a link to ${email}. Open it within an hour to choose your password.` });
+          } catch (err) {
+            setMsg({ ok: false, text: (err as Error).message });
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? 'Sending…' : 'Email me a link to set a password'}
+      </button>
+      <Status msg={msg} />
+    </div>
+  );
+}
+
 export function SignOutElsewhere({ others }: { others: number }) {
   const router = useRouter();
   const [msg, setMsg] = useState<Message>(null);

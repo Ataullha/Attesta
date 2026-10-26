@@ -23,6 +23,17 @@ export function hashIp(ip: string) {
   return createHmac('sha256', salt()).update(ip).digest('base64url').slice(0, 32);
 }
 
+/** A keyed signature for a value the browser carries for us but must not be able to change. */
+export function signValue(value: string) {
+  return createHmac('sha256', salt()).update(`signed:${value}`).digest('base64url');
+}
+
+export function signatureMatches(value: string, signature: string) {
+  const expected = Buffer.from(signValue(value));
+  const given = Buffer.from(signature);
+  return expected.length === given.length && timingSafeEqual(expected, given);
+}
+
 const SCRYPT = { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
 export async function hashPassword(password: string) {

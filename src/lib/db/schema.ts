@@ -22,7 +22,10 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
-  passwordHash: text('password_hash').notNull(),
+  // Null for an account that has only ever signed in with Google; "Forgot your password?" can add one.
+  passwordHash: text('password_hash'),
+  // Google's permanent id for the person ("sub"), once they have signed in with Google.
+  googleSub: text('google_sub').unique(),
   role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),
   emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
   credits: integer('credits').notNull().default(0),
