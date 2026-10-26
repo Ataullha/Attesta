@@ -1,4 +1,8 @@
-// Generates an Ed25519 key pair for signing certificates. Paste the output into your environment variables.
+// Generates an Ed25519 key pair for signing certificates.
+//
+// stdout carries only KEY=value lines, so it can be appended straight to an env file:
+//   npm run -s keys:generate >> .env.local
+// Guidance goes to stderr and is not captured by the redirect.
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
@@ -10,5 +14,6 @@ console.log(`SIGNING_KEY_ID=${keyId}`);
 console.log(`SIGNING_PRIVATE_KEY=${priv}`);
 console.log(`SIGNING_PUBLIC_KEY=${pub}`);
 console.log(`SECRET_SALT=${randomBytes(32).toString('base64url')}`);
-console.log('\nKeep SIGNING_PRIVATE_KEY secret. If you rotate keys later, move the old public key into');
-console.log('SIGNING_PUBLIC_KEYS_OLD as JSON, e.g. {"k20260101":"MCowBQYDK2VwAyEA..."}, so older certificates still verify.');
+
+console.error('\nKeep SIGNING_PRIVATE_KEY secret and backed up. If you rotate keys later, move the old public key into');
+console.error('SIGNING_PUBLIC_KEYS_OLD as JSON, e.g. {"k20260101":"MCowBQYDK2VwAyEA..."}, so older certificates still verify.');
