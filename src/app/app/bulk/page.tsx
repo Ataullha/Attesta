@@ -6,7 +6,7 @@ import { formatMoney, limits, packages, perCertificate } from '@/lib/site';
 import Link from 'next/link';
 import { card } from '@/components/ui/styles';
 import { PageTitle } from '@/components/app/Shell';
-import { BulkIssuer } from '@/components/bulk/BulkIssuer';
+import { LazyBulkIssuer } from '@/components/bulk/LazyBulkIssuer';
 
 export default async function BulkPage({ searchParams }: PageProps<'/app/bulk'>) {
   const user = await requireUserPage('/app/bulk');
@@ -59,7 +59,7 @@ export default async function BulkPage({ searchParams }: PageProps<'/app/bulk'>)
           </p>
         </section>
       ) : (
-        <BulkIssuer
+        <LazyBulkIssuer
           templates={templates}
           initialTemplateId={typeof sp.template === 'string' ? sp.template : null}
           credits={user.credits}

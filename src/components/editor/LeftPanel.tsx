@@ -102,7 +102,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
               ))}
             </div>
             <div className="mt-6 rounded-[4px] border border-dashed border-rule-2 p-3.5">
-              <h3 className="text-[14px] font-semibold">Add a field box</h3>
+              <h2 className="text-[14px] font-semibold">Add a field box</h2>
               <p className="mt-1 text-[12.5px] leading-snug text-muted">
                 A box whose text changes for every recipient — like roll number, grade or event name. Drag it where you want it.
               </p>
@@ -178,7 +178,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
         {tab === 'page' && (
           <div className="space-y-5 p-4">
             <section className="rounded-[4px] border border-rule bg-card p-3.5">
-              <h3 className="text-[14px] font-semibold">Use your own certificate design</h3>
+              <h2 className="text-[14px] font-semibold">Use your own certificate design</h2>
               <p className="mt-1 text-[12.5px] leading-snug text-muted">
                 Upload a PNG or JPG of a certificate you designed elsewhere (Canva, Illustrator, Photoshop) with the name area left blank. Then drag field boxes onto it.
               </p>

@@ -477,7 +477,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
             onClick={save}
             disabled={saveState === 'saving'}
             // The visible label is shortened on phones, so the full meaning is stated once, here.
-            aria-label={user ? (saveState === 'dirty' ? 'Save template (unsaved changes)' : 'Save template') : 'Save: create a free account, keeping this design'}
+            aria-label={user ? (saveState === 'dirty' ? 'Save template (unsaved changes)' : 'Save template') : 'Save template (with a free account; this design is kept)'}
           >
             <span className="sm:hidden">Save</span>
             <span className="hidden sm:inline">Save template</span>

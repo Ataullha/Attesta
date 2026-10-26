@@ -88,6 +88,12 @@ Vercel → **Settings → Domains** → add it and follow the DNS instructions. 
 
 **`src/app/(site)/privacy/page.tsx` and `terms/page.tsx`** — starting drafts; have a lawyer review them.
 
+**What the site leaves out on purpose**
+- Testimonials, customer logos and usage numbers: there are none yet, and invented ones would undercut a product whose
+  whole point is trust. Add real ones, with permission, to the landing page once you have them.
+- Analytics: none is installed. If you add one, say so on the privacy page and allow its domain in the content security
+  policy in `next.config.ts`.
+
 ## Email
 Without email configured, new accounts are active immediately and reset links only appear in the Vercel function logs.
 For production, create a free account at resend.com, verify your domain, and set `RESEND_API_KEY` and `EMAIL_FROM`.
