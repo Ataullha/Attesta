@@ -14,6 +14,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Migrates TEST_DATABASE_URL (when set) once; env.ts points the app at it for every test file.
+    globalSetup: ['tests/setup/global.ts'],
+    setupFiles: ['tests/setup/env.ts'],
     testTimeout: 30_000,
     hookTimeout: 60_000,
   },
