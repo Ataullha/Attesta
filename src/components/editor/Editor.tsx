@@ -4,12 +4,13 @@ import './fonts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { designSchema, type Design, type DesignElement, type ElementType, type Field } from '@/lib/design';
+import { designSchema, localImages, withUploadedImages, type Design, type DesignElement, type ElementType, type Field } from '@/lib/design';
 import { cleanValues } from '@/lib/values';
 import { site } from '@/lib/site';
 import { btn } from '@/components/ui/styles';
 import { SealMark } from '@/components/site/SealMark';
 import { AssetStore, normaliseImageFile, type ImageRef } from './assets';
+import { DRAFT_RETURN, saveDraft, takeDraft } from './draft';
 import { buildPdf, downloadBytes, safeFilename } from './pdf';
 import { Stage } from './Stage';
 import { Inspector, type ElementAction } from './Inspector';
@@ -91,10 +92,58 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     return () => window.removeEventListener('beforeunload', h);
   }, [dirty, user]);
 
-  const flash = useCallback((msg: string) => {
+  const flash = useCallback((msg: string, ms = 4000) => {
     setNotice(msg);
-    window.setTimeout(() => setNotice((n) => (n === msg ? null : n)), 4000);
+    window.setTimeout(() => setNotice((n) => (n === msg ? null : n)), ms);
   }, []);
+
+  // Coming back from signing in (/create?draft=1): put back the design that was being worked on.
+  // A ref, not the effect's cleanup, guards this, so React's development double-run cannot take the
+  // draft in one run and then drop it.
+  const draftChecked = useRef(false);
+  useEffect(() => {
+    if (draftChecked.current) return;
+    draftChecked.current = true;
+    if (new URLSearchParams(window.location.search).get('draft') !== '1') return;
+    window.history.replaceState(null, '', '/create');
+    (async () => {
+      const draft = await takeDraft();
+      const parsed = draft ? designSchema.safeParse(draft.design) : null;
+      if (!draft || !parsed?.success) return;
+      for (const [id, blob] of Object.entries(draft.images)) assets.addLocal(blob, id);
+      history.reset(parsed.data);
+      setName(draft.name);
+      setValues(draft.values);
+      setAssetVersion((v) => v + 1);
+      const pending = localImages(parsed.data).filter((i) => draft.images[i.localId]);
+      if (!user || !pending.length) {
+        flash(user ? 'Your design is back. Save it as a template to keep it.' : 'Your design is back.');
+        return;
+      }
+      // Images added as a guest exist only in this page; now there is an account, they are uploaded to it.
+      const uploaded = new Map<string, string>();
+      try {
+        for (const { localId, kind } of pending) uploaded.set(localId, (await uploadBlob(draft.images[localId], 'image', kind)).assetId);
+      } catch (err) {
+        flash(`Your design is back, but an image could not be uploaded (${(err as Error).message}). Add it again before issuing.`, 8000);
+      }
+      if (uploaded.size) history.reset(withUploadedImages(parsed.data, uploaded));
+      if (uploaded.size === pending.length) flash('Your design is back, images included. Save it as a template to keep it.');
+    })();
+  }, []); // once, on arrival
+
+  /** Off to sign in or sign up, keeping the design so it is here again on the way back. */
+  async function toAccount(path: '/login' | '/register') {
+    const images: Record<string, Blob> = {};
+    for (const { localId } of localImages(design)) {
+      const blob = assets.getLocal(localId);
+      if (blob) images[localId] = blob;
+    }
+    await saveDraft({ design, name, values, images });
+    // The browser's Back button from the sign-in page also finds the design again.
+    window.history.replaceState(null, '', DRAFT_RETURN);
+    router.push(`${path}?next=${encodeURIComponent(DRAFT_RETURN)}`);
+  }
 
   // On a narrow screen, tapping an element should show that element's settings, from the top.
   // (At `lg` the window never scrolls and both panels are visible, so this is a no-op there.)
@@ -249,13 +298,17 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     });
     if (!dims.width) throw new Error('That file could not be read as an image.');
     if (!user) return { assetId: null, localId: assets.addLocal(blob), ...dims };
+    return { ...(await uploadBlob(blob, file.name || 'image', kind)), ...dims };
+  }
+
+  async function uploadBlob(blob: Blob, filename: string, kind: 'signature' | 'logo' | 'seal' | 'background' | 'image') {
     const fd = new FormData();
-    fd.append('file', new File([blob], file.name || 'image', { type: blob.type }));
+    fd.append('file', new File([blob], filename, { type: blob.type }));
     fd.append('kind', kind);
     const res = await fetch('/api/assets', { method: 'POST', body: fd });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(j.error ?? 'Upload failed.');
-    return { assetId: j.id, localId: null, ...dims };
+    return { assetId: j.id as string, localId: null };
   }
 
   async function onUploadForSelected(file: File) {
@@ -311,7 +364,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
 
   async function save() {
     if (!user) {
-      router.push(`/login?next=${encodeURIComponent('/create')}`);
+      await toAccount('/register');
       return;
     }
     const parsed = designSchema.safeParse(design);
@@ -392,6 +445,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     // gets a fixed-height two-column one: stage on the left, the chosen panel on the right.
     <div className="flex min-h-dvh flex-col bg-paper lg:h-dvh short:h-dvh">
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-rule bg-card px-3 sm:gap-3 sm:px-4 lg:static short:static">
+        <h1 className="sr-only">Certificate editor</h1>
         <Link href={user ? '/app' : '/'} className="flex shrink-0 items-center gap-2 text-ink" aria-label={`${site.name} — ${user ? 'your dashboard' : 'home'}`}>
           <SealMark size={24} color="#8A5D28" />
           <span className="hidden font-serif text-[22px] leading-none sm:inline">{site.name}</span>
@@ -402,7 +456,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className="w-full truncate rounded-[4px] border border-transparent bg-transparent px-2 py-1.5 text-[15px] hover:border-rule focus:border-brass focus:outline-none" />
         </label>
         <span className="hidden text-[12.5px] text-muted md:block" aria-live="polite">
-          {user ? (saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes') : 'Guest mode — sign in to save'}
+          {user ? (saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes') : 'Guest mode — a free account saves your work'}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
           <button type="button" className={iconButton} onClick={history.undo} disabled={!history.canUndo} aria-label="Undo">
@@ -423,19 +477,10 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
             onClick={save}
             disabled={saveState === 'saving'}
             // The visible label is shortened on phones, so the full meaning is stated once, here.
-            aria-label={user ? (saveState === 'dirty' ? 'Save template (unsaved changes)' : 'Save template') : 'Sign in to save'}
+            aria-label={user ? (saveState === 'dirty' ? 'Save template (unsaved changes)' : 'Save template') : 'Save: create a free account, keeping this design'}
           >
-            {user ? (
-              <>
-                <span className="sm:hidden">Save</span>
-                <span className="hidden sm:inline">Save template</span>
-              </>
-            ) : (
-              <>
-                <span className="sm:hidden">Sign in</span>
-                <span className="hidden sm:inline">Sign in to save</span>
-              </>
-            )}
+            <span className="sm:hidden">Save</span>
+            <span className="hidden sm:inline">Save template</span>
             {user && saveState === 'dirty' && <span className="h-2 w-2 rounded-full bg-gold md:hidden" aria-hidden="true" />}
           </button>
         </div>
@@ -548,6 +593,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
               signedIn={!!user}
               quotaNote={quotaNote}
               templateId={templateId}
+              onAccount={toAccount}
             />
           )}
         </aside>

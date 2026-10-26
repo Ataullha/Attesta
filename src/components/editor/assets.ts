@@ -52,10 +52,15 @@ export class AssetStore {
   private blobs = new Map<string, Promise<Blob | null>>();
   private images = new Map<string, Promise<HTMLImageElement | null>>();
 
-  addLocal(blob: Blob) {
-    const id = `local-${crypto.randomUUID()}`;
+  /** `id` is given when an image comes back from a kept draft, so the design's references still match. */
+  addLocal(blob: Blob, id = `local-${crypto.randomUUID()}`) {
     this.local.set(id, blob);
     return id;
+  }
+
+  /** An image added without an account, which exists only in this page until it is uploaded. */
+  getLocal(id: string) {
+    return this.local.get(id);
   }
 
   private blob(ref: ImageRef) {

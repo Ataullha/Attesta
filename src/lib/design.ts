@@ -191,6 +191,25 @@ export function hasLocalImages(d: Design) {
   return !!d.page.background.localId || d.elements.some((e) => e.type === 'image' && !!e.localId);
 }
 
+/** Images that so far exist only in the browser that added them, each once, with what it is used as. */
+export function localImages(d: Design) {
+  const found = new Map<string, 'background' | 'signature' | 'logo' | 'seal' | 'image'>();
+  if (d.page.background.localId) found.set(d.page.background.localId, 'background');
+  for (const e of d.elements) if (e.type === 'image' && e.localId && !found.has(e.localId)) found.set(e.localId, e.role);
+  return [...found].map(([localId, kind]) => ({ localId, kind }));
+}
+
+/** The design with every local image that has since been uploaded pointing at its upload instead. */
+export function withUploadedImages(d: Design, uploaded: Map<string, string>): Design {
+  const swap = <T extends { assetId: string | null; localId: string | null }>(ref: T): T =>
+    ref.localId && uploaded.has(ref.localId) ? { ...ref, assetId: uploaded.get(ref.localId)!, localId: null } : ref;
+  return {
+    ...d,
+    page: { ...d.page, background: swap(d.page.background) },
+    elements: d.elements.map((e) => (e.type === 'image' ? swap(e) : e)),
+  };
+}
+
 export function todayLabel(date = new Date()) {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }

@@ -103,6 +103,17 @@ The content security policy opens up for Google’s ad domains automatically whe
 
 ---
 
+## From visitor to customer
+- Anyone can use the editor without an account and make `limits.guestLifetime` certificates, marked as unregistered.
+  Pressing **Save**, or reaching that limit, leads to sign-up, and the design comes along: the editor keeps it in the browser,
+  images included, puts it back when they return, and uploads the images to the new account (`src/components/editor/draft.ts`).
+- A new account’s dashboard lists what is left to set up: confirm the email address, add the organisation, upload a signature
+  or logo, issue the first certificate. The list goes once everything on it is done.
+- When the month’s free certificates run out, the dashboard offers a package and says when more arrive. The bulk page shows
+  the packages to accounts without credits, and every “Buy” link opens billing with that package already chosen.
+- Every valid verification page invites its recipient to add the certificate to LinkedIn or share it, and shows other visitors
+  how to issue certificates of their own. Recipients sharing their certificates is how most new issuers will find the site.
+
 ## How payments work
 1. A user picks a package on **Packages and billing**, pays by bKash / Nagad / bank, and submits the transaction ID.
 2. You check it against your statement in **Admin → Payments** and press **Confirm**. Credits are added instantly.

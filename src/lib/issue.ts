@@ -25,6 +25,12 @@ function monthStart() {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
+/** When this month's free certificates come back: the start of next month, by the same clock as the count. */
+export function freeRenewsOn() {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+}
+
 export async function usageThisMonth(userId: string) {
   const rows = await db()
     .select({ n: count() })
