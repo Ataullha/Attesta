@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth/session';
 import { RegisterForm } from '@/components/site/AuthForms';
+import { safeNextPath } from '@/lib/safe-redirect';
 import { limits } from '@/lib/site';
 
 export const metadata: Metadata = { title: 'Create a free account', description: `Free account with ${limits.freeMonthly} verifiable certificates a month.` };
@@ -10,7 +11,7 @@ export const metadata: Metadata = { title: 'Create a free account', description:
 export default async function RegisterPage({ searchParams }: PageProps<'/register'>) {
   const sp = await searchParams;
   const next = typeof sp.next === 'string' ? sp.next : undefined;
-  if (await getUser()) redirect('/app');
+  if (await getUser()) redirect(safeNextPath(next));
   return (
     <>
       <h1 className="font-serif text-[40px] leading-tight">Create a free account</h1>
