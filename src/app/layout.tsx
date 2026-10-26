@@ -12,7 +12,8 @@ export const metadata: Metadata = {
   title: { default: `${site.name} — Certificate maker with QR verification`, template: `%s · ${site.name}` },
   description: site.description,
   applicationName: site.name,
-  alternates: { canonical: '/' },
+  // No default canonical here: metadata is inherited, so a root-level one would make every page that
+  // does not set its own (login, register, 404…) claim to be a duplicate of the home page.
   openGraph: { type: 'website', siteName: site.name, locale: 'en_US', url: site.url },
   twitter: { card: 'summary_large_image' },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large' } },

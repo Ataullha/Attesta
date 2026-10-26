@@ -6,7 +6,12 @@ import { RegisterForm } from '@/components/site/AuthForms';
 import { safeNextPath } from '@/lib/safe-redirect';
 import { limits } from '@/lib/site';
 
-export const metadata: Metadata = { title: 'Create a free account', description: `Free account with ${limits.freeMonthly} verifiable certificates a month.` };
+// robots.txt already disallows /register; noindex keeps it out of results if it is linked to elsewhere.
+export const metadata: Metadata = {
+  title: 'Create a free account',
+  description: `Free account with ${limits.freeMonthly} verifiable certificates a month.`,
+  robots: { index: false },
+};
 
 export default async function RegisterPage({ searchParams }: PageProps<'/register'>) {
   const sp = await searchParams;
