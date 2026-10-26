@@ -15,7 +15,9 @@ export function cleanValues(design: Pick<Design, 'fields'>, raw: Record<string, 
   const values: Record<string, string> = {};
   const errors: string[] = [];
   for (const f of design.fields) {
-    let v = typeof raw[f.key] === 'string' ? (raw[f.key] as string) : raw[f.key] == null ? '' : String(raw[f.key]);
+    // Own properties only: a field called "constructor" must not read Object.prototype.constructor.
+    const supplied = Object.hasOwn(raw, f.key) ? raw[f.key] : undefined;
+    let v = typeof supplied === 'string' ? supplied : supplied == null ? '' : String(supplied);
     v = v.replace(CONTROL, '').replace(/\s+/g, ' ').trim();
     if (v.length > MAX) errors.push(`${f.label} is longer than ${MAX} characters`);
     if (!v && f.type === 'date') v = todayLabel(issueDate);
