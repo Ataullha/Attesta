@@ -75,6 +75,19 @@ describe('route()', () => {
     expect(await res.json()).toEqual({ error: 'Buy a package.', code: 'needs_package' });
   });
 
+  it('tells the client when it may try again, only when it knows', async () => {
+    const limited = route(async () => {
+      throw new HttpError(429, 'Slow down.', 'rate_limited', 90);
+    });
+    const res = await limited(post({ 'sec-fetch-site': 'same-origin' }), undefined);
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('90');
+    const refused = route(async () => {
+      throw new HttpError(402, 'Buy a package.', 'needs_package');
+    });
+    expect((await refused(post({ 'sec-fetch-site': 'same-origin' }), undefined)).headers.get('retry-after')).toBeNull();
+  });
+
   it('hides the cause of an unexpected failure from the client but logs it', async () => {
     const log = quiet();
     const h = route(async () => {

@@ -16,6 +16,20 @@ describe.skipIf(!hasDb)('one-time email tokens (real Postgres)', () => {
     expect(JSON.stringify(rows)).not.toContain(token);
   });
 
+  it('lasts an hour for a password reset and a day for an email confirmation', async () => {
+    const user = await makeUser();
+    const lifetimeMs = async (token: string) => {
+      const [row] = await db().select().from(schema.emailTokens).where(eq(schema.emailTokens.id, sha256Hex(token)));
+      return row.expiresAt.getTime() - Date.now();
+    };
+    const reset = await lifetimeMs(await issueEmailToken(user.id, 'reset'));
+    expect(reset).toBeGreaterThan(59 * 60_000);
+    expect(reset).toBeLessThanOrEqual(60 * 60_000);
+    const verify = await lifetimeMs(await issueEmailToken(user.id, 'verify'));
+    expect(verify).toBeGreaterThan(23 * 3600_000);
+    expect(verify).toBeLessThanOrEqual(24 * 3600_000);
+  });
+
   it('can be spent once, by whoever holds it', async () => {
     const user = await makeUser();
     const token = await issueEmailToken(user.id, 'verify');

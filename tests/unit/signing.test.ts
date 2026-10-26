@@ -183,6 +183,14 @@ describe('normalizeSerial', () => {
     expect(s.normalizeSerial('')).toBe('');
   });
 
+  it('only tidies input that is not a serial, so the "not found" page shows what was typed', async () => {
+    const s = await signingWith('k1', keypair());
+    expect(s.normalizeSerial('zz–12—34')).toBe('ZZ-12-34'); // typographic dashes become hyphens
+    // Too long to be a serial: left as typed, not cut into a serial-shaped string that was never entered.
+    expect(s.normalizeSerial('ATT-7K2Q-9M4D-X1TB-EXTRA')).toBe('ATT-7K2Q-9M4D-X1TB-EXTRA');
+    expect(s.normalizeSerial('guest-7k2q-9m4d-x1tb-extra')).toBe('GUEST-7K2Q-9M4D-X1TB-EXTRA');
+  });
+
   it('is idempotent', async () => {
     const s = await signingWith('k1', keypair());
     for (const typed of ['att 7k2q 9m4d x1tb', 'ATT7K2Q9M4DX1TB', 'junk!!', 'GUEST-1234-ABCD-5678', '']) {

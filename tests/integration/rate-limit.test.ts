@@ -39,6 +39,18 @@ describe.skipIf(!hasDb)('rateLimit (real Postgres)', () => {
     expect(row.count).toBe(1);
   });
 
+  // A sliding window would let someone who keeps trying stay locked out for ever, and would let a patient
+  // attacker's counter never reset: the end of the window is set by the first attempt and nothing later moves it.
+  it('keeps the window fixed: later attempts do not push its end back', async () => {
+    const key = `test:${randomUUID()}`;
+    await rateLimit(key, 5, 600);
+    await db().update(schema.rateLimits).set({ resetAt: sql`now() + interval '30 seconds'` }).where(eq(schema.rateLimits.key, key));
+    await rateLimit(key, 5, 600);
+    const [row] = await db().select({ left: sql<number>`extract(epoch from (reset_at - now()))::float` }).from(schema.rateLimits).where(eq(schema.rateLimits.key, key));
+    expect(row.left).toBeGreaterThan(25);
+    expect(row.left).toBeLessThanOrEqual(30);
+  });
+
   it('counts exactly under concurrency, so parallel requests cannot slip past the limit', async () => {
     const key = `test:${randomUUID()}`;
     const outcomes = await Promise.all(Array.from({ length: 40 }, () => failure(rateLimit(key, 10, 60))));

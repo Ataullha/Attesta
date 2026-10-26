@@ -191,6 +191,17 @@ describe('signing in', () => {
     expect((await account.browser.get('/app')).status).toBe(307);
   });
 
+  it('signing in again on the same browser ends the session it replaces', async () => {
+    const account = await signUp('relogin');
+    const first = account.browser.cookie('att_session')!;
+    expect((await signIn(account, account.browser)).reply.status).toBe(200);
+    expect(account.browser.cookie('att_session')).not.toBe(first);
+    expect((await account.browser.get('/app')).status).toBe(200);
+    // Someone who kept the old cookie (a copied cookie jar, a shared computer) gets nothing from it.
+    const stale = await new Browser().get('/app', { headers: { Cookie: `att_session=${first}` } });
+    expect([stale.status, stale.headers.get('location')]).toEqual([307, '/login?next=%2Fapp']);
+  });
+
   it('slows down guessing: eight wrong passwords for one address, then a pause', async () => {
     const { email } = await signUp('guess');
     const attempts = [];

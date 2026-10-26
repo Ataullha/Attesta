@@ -30,6 +30,9 @@ describe('sniffImage', () => {
     expect(sniffImage(Buffer.from('RIFF\x00\x00\x00\x00WAVEfmt '))).toBeNull(); // RIFF, but audio
     expect(sniffImage(Buffer.alloc(0))).toBeNull();
     expect(sniffImage(Buffer.from([0x89, 0x50]))).toBeNull();
+    // Starts like a JPEG marker (FF D8 FF) in one byte but not the others.
+    expect(sniffImage(Buffer.from([0xff, 0xaa, 0xff, 0x00, 0x00]))).toBeNull();
+    expect(sniffImage(Buffer.from([0xff, 0xd8, 0x00, 0x00, 0x00]))).toBeNull();
   });
 });
 
