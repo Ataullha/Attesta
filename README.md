@@ -60,6 +60,10 @@ It prints four lines. In Vercel → **Settings → Environment Variables**, add 
 ### 5. Deploy
 **Deployments → Redeploy**. The build log should show `Migrations applied.`
 
+Then open `https://your-domain.com/api/health`. It should answer `{"ok":true,"checks":{"database":"ok","signing":"ok"}}`.
+The `signing` check catches the most common setup mistake — a public key pasted in that does not belong to the private key —
+which would otherwise make every certificate you issue show “could not be confirmed”. Point an uptime monitor at the same address.
+
 ### 6. Make yourself admin
 Register an account on the live site, then on your computer run (use the database URL from Vercel):
 
@@ -112,6 +116,11 @@ An automatic gateway (SSLCommerz, bKash PGW) can be added later in `src/app/api/
 - Recipient names show as “First L.” by default; issuers can choose full or hidden per template.
 - **Verified organisation**: the issuer adds a DNS TXT record proving domain control, then an admin approves it.
 
+## Your records
+**Certificates → Export all as CSV** downloads every certificate you have issued (serial, verification link, recipient, date, status,
+revocation reason, batch). Search first and it exports just those results; on **All batches** each batch can be exported with its own
+fields as extra columns. The file opens correctly in Excel, Bangla names included, and cannot run a spreadsheet formula.
+
 ## How PDFs are made
 PDFs are built **in the user’s browser**, not on the server. This keeps Bangla conjuncts correct (server PDF libraries break them),
 makes the preview identical to the output, and lets 5,000-row batches run without serverless time limits or server cost.
@@ -120,6 +129,8 @@ Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi.
 
 ## Security summary
 - Passwords: scrypt (N=32768) with per-user salt. Sessions: random tokens, stored hashed, httpOnly + SameSite cookies.
+- Email-confirmation and password-reset links are single-use and spent atomically, so one link cannot be replayed by parallel requests.
+  Resetting or changing a password signs out every other device, and **Account settings** can do that on demand.
 - CSRF: every state-changing request must come from the site’s own origin.
 - Rate limits (stored in Postgres): login, register, password reset, issuing, uploads, reports.
 - Quotas are enforced in a database transaction with a row lock, so parallel requests can’t exceed them.
@@ -131,9 +142,12 @@ Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi.
 
 ## Run locally
 
+Needs Node 20.9 or newer (`.nvmrc` pins 22) and a Postgres database.
+
 ```bash
 npm install
-cp .env.example .env.local        # fill in DATABASE_URL and the output of: npm run keys:generate
+cp .env.example .env.local        # then set DATABASE_URL in it
+npm run -s keys:generate >> .env.local
 npm run db:migrate
 npm run dev                       # http://localhost:3000
 ```
@@ -145,23 +159,48 @@ Useful scripts:
 | `npm run dev` | development server |
 | `npm run build` / `npm start` | production build / server |
 | `npm run typecheck` | TypeScript check |
+| `npm test` | unit and database tests (see “Testing”) |
+| `npm run test:e2e` | end-to-end tests against a built copy of the app |
 | `npm run db:generate` | create a new migration after editing `src/lib/db/schema.ts` |
 | `npm run db:migrate` | apply migrations |
 | `npm run keys:generate` | new signing keys |
 | `npm run admin:promote -- email` | make an account admin |
+
+## Testing
+Tests that touch the database delete and insert rows, so they use their own database and refuse to run against one
+whose name does not contain `test`:
+
+```bash
+createdb attesta_test
+export TEST_DATABASE_URL=postgres://user:password@127.0.0.1:5432/attesta_test
+
+npm test               # unit tests, and tests against the real database (skipped without TEST_DATABASE_URL)
+npm run build
+npm run test:e2e       # starts the built app, with a stand-in mail server, and drives it over HTTP
+```
+
+`npm test` covers the signing and serial rules, design and CSV handling, password hashing, image re-encoding, redirects,
+one-time links, rate limits and the CSV export. `npm run test:e2e` covers what a person does: sign up, confirm by email, issue,
+verify, revoke, reset a password, export, the admin screens, and what search engines are told. It refuses to run if the build is
+older than the source. GitHub Actions runs the type check, both suites and the build on every pull request and every push to `main`
+(`.github/workflows/ci.yml`).
 
 ## Project map
 ```
 src/app/(site)/        public pages: landing, templates, certificate-maker/[slug], verify, pricing, legal
 src/app/(auth)/        sign in, register, password reset, email confirmation
 src/app/create/        the certificate editor
-src/app/app/           user panel: certificates, bulk, templates, library, organisation, billing
+src/app/app/           user panel: certificates, batches, bulk, templates, library, organisation, billing, settings
 src/app/admin/         admin panel
 src/app/api/           all server endpoints
 src/components/editor/ editor, canvas renderer, PDF builder
 src/components/bulk/   CSV bulk issuing
+src/components/ui/     shared styles, and the in-page dialogs and toasts
 src/lib/               database schema, auth, signing, quotas, presets, site config
 drizzle/               SQL migrations
+tests/unit/            logic with no database
+tests/integration/     logic against a real Postgres
+tests/e2e/             the built app, over HTTP
 ```
 
 ## Scaling notes
