@@ -13,6 +13,15 @@ async function post(url: string, body: unknown) {
   return j;
 }
 
+/** Shown when someone arrives from the editor: what they designed is kept for them (see editor/draft.ts). */
+export function DesignComesWithYou() {
+  return (
+    <p className="mb-6 rounded-[4px] border border-seal/30 bg-seal-soft px-3.5 py-2.5 text-[14.5px] leading-snug text-seal">
+      Your design is kept. You will be back in the editor with it as soon as you are signed in.
+    </p>
+  );
+}
+
 function ErrorLine({ error }: { error: string | null }) {
   return error ? <p role="alert" className="rounded-[4px] border border-revoked/30 bg-revoked-soft px-3 py-2 text-[14px] text-revoked">{error}</p> : null;
 }
@@ -47,7 +56,7 @@ export function LoginForm({ next }: { next?: string }) {
       </label>
       <ErrorLine error={error} />
       <button className={btn.primary + ' w-full'} disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-      <p className="text-[14px]"><Link href="/forgot-password" className="text-brass underline-offset-2 hover:underline">Forgot your password?</Link></p>
+      <p className="text-[14px]"><Link href="/forgot-password" className="text-brass underline underline-offset-2 hover:text-brass-dark">Forgot your password?</Link></p>
     </form>
   );
 }
@@ -164,8 +173,11 @@ export function VerifyEmailRunner({ token }: { token: string }) {
   if (state === 'error') return <ErrorLine error={error} />;
   return (
     <div>
-      <p className="text-[16px] text-seal">Your email is confirmed.</p>
-      <Link href="/app" className={btn.primary + ' mt-5'}>Go to your dashboard</Link>
+      <p className="text-[16px] text-seal">Your email is confirmed. You can issue verifiable certificates now.</p>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Link href="/create" className={btn.primary}>Make a certificate</Link>
+        <Link href="/app" className={btn.secondary}>Go to your dashboard</Link>
+      </div>
     </div>
   );
 }

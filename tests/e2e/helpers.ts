@@ -46,6 +46,8 @@ export type Reply = {
 
 type Options = {
   body?: unknown;
+  /** A multipart form, as a file upload sends, in place of a JSON body. */
+  form?: FormData;
   headers?: Record<string, string>;
   /** Pretend to come from another address (a different person on the same network). */
   ip?: string;
@@ -61,7 +63,7 @@ export class Browser {
     return this.jar.get(name);
   }
 
-  async request(method: string, path: string, { body, headers = {}, ip = this.ip, sameOrigin = true }: Options = {}): Promise<Reply> {
+  async request(method: string, path: string, { body, form, headers = {}, ip = this.ip, sameOrigin = true }: Options = {}): Promise<Reply> {
     const base = baseUrl();
     const sent: Record<string, string> = {
       'x-forwarded-for': ip,
@@ -71,7 +73,7 @@ export class Browser {
     };
     if (this.jar.size) sent.Cookie = [...this.jar].map(([k, v]) => `${k}=${v}`).join('; ');
     // Redirects are left alone: a test about "sends you to sign in" needs to see the redirect itself.
-    const res = await fetch(base + path, { method, headers: sent, body: body === undefined ? undefined : JSON.stringify(body), redirect: 'manual' });
+    const res = await fetch(base + path, { method, headers: sent, body: form ?? (body === undefined ? undefined : JSON.stringify(body)), redirect: 'manual' });
     this.keepCookies(res);
     const bytes = new Uint8Array(await res.arrayBuffer());
     // ignoreBOM keeps a leading U+FEFF in the text, so a test can see it.
@@ -88,6 +90,7 @@ export class Browser {
   get = (path: string, options?: Options) => this.request('GET', path, options);
   post = (path: string, body: unknown = {}, options?: Options) => this.request('POST', path, { ...options, body });
   delete = (path: string, options?: Options) => this.request('DELETE', path, options);
+  upload = (path: string, form: FormData, options?: Options) => this.request('POST', path, { ...options, form });
 
   private keepCookies(res: Response) {
     for (const line of res.headers.getSetCookie()) {

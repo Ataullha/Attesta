@@ -6,18 +6,26 @@ import { formatMoney } from '@/lib/site';
 import { card } from '@/components/ui/styles';
 import { PageTitle } from '@/components/app/Shell';
 import { BillingForm } from '@/components/app/BillingForm';
+import { ResendVerification } from '@/components/app/Actions';
 
 const STATUS = { pending: 'Waiting for confirmation', approved: 'Credits added', rejected: 'Not confirmed' } as const;
 
-export default async function BillingPage() {
+export default async function BillingPage({ searchParams }: PageProps<'/app/billing'>) {
   const user = await requireUserPage('/app/billing');
+  const chosen = (await searchParams).package;
   const payments = await db().select().from(schema.payments).where(eq(schema.payments.userId, user.id)).orderBy(desc(schema.payments.createdAt)).limit(20);
   return (
     <>
       <PageTitle title="Packages and billing" />
       <p className="-mt-4 mb-8 text-[15.5px] text-ink-2">You have <strong>{user.credits.toLocaleString()}</strong> package credits. Credits never expire, and packages unlock bulk issuing.</p>
       <div className={`${card} max-w-4xl p-6`}>
-        {user.emailVerified ? <BillingForm /> : <p className="text-revoked">Confirm your email address before buying a package.</p>}
+        {user.emailVerified ? (
+          <BillingForm initialPackage={typeof chosen === 'string' ? chosen : undefined} />
+        ) : (
+          <p className="text-[15px] text-ink-2">
+            Confirm your email address before buying a package: the link went to {user.email}. <ResendVerification />
+          </p>
+        )}
       </div>
       {payments.length > 0 && (
         <section className="mt-10 max-w-4xl">

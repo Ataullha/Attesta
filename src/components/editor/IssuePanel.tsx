@@ -21,9 +21,11 @@ type Props = {
   signedIn: boolean;
   quotaNote: string;
   templateId: string | null;
+  /** Goes to sign in or sign up, keeping the design. */
+  onAccount: (path: '/login' | '/register') => void;
 };
 
-export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy, progress, result, error, signedIn, quotaNote, templateId }: Props) {
+export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy, progress, result, error, signedIn, quotaNote, templateId, onAccount }: Props) {
   const [copied, copy] = useCopy();
   return (
     <div className="text-[14px]">
@@ -89,9 +91,9 @@ export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy,
         <div role="alert" className="mx-4 mb-4 rounded-[4px] border border-revoked/30 bg-revoked-soft p-3 text-[13px] leading-snug text-revoked">
           {error.message}
           {error.code === 'guest_limit' && (
-            <Link href="/register" className="mt-2 block font-medium underline">
-              Create a free account
-            </Link>
+            <button type="button" onClick={() => onAccount('/register')} className="mt-2 block text-left font-medium underline">
+              Create a free account — this design comes with you
+            </button>
           )}
           {(error.code === 'quota_exceeded' || error.code === 'needs_package') && (
             <Link href="/app/billing" className="mt-2 block font-medium underline">
@@ -99,9 +101,9 @@ export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy,
             </Link>
           )}
           {error.code === 'unauthenticated' && (
-            <Link href="/login" className="mt-2 block font-medium underline">
-              Sign in
-            </Link>
+            <button type="button" onClick={() => onAccount('/login')} className="mt-2 block text-left font-medium underline">
+              Sign in — this design comes with you
+            </button>
           )}
         </div>
       )}
@@ -114,10 +116,10 @@ export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy,
             <p className="mt-2 text-[12.5px] leading-snug text-ink-2">
               Guest certificates carry a footer note and are not registered, so the QR code won’t confirm them.
               {typeof result.remaining === 'number' && ` ${result.remaining} guest certificate${result.remaining === 1 ? '' : 's'} left.`}{' '}
-              <Link href="/register" className="font-medium text-brass underline">
+              <button type="button" onClick={() => onAccount('/register')} className="font-medium text-brass underline">
                 Sign up free
-              </Link>{' '}
-              for verifiable certificates.
+              </button>{' '}
+              for verifiable certificates; this design comes with you.
             </p>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">

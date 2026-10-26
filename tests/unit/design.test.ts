@@ -7,10 +7,12 @@ import {
   fillPlaceholders,
   hasLocalImages,
   isDynamic,
+  localImages,
   maskName,
   placeholdersIn,
   referencedAssetIds,
   slugKey,
+  withUploadedImages,
   type Design,
 } from '@/lib/design';
 
@@ -124,6 +126,38 @@ describe('design helpers', () => {
     expect(hasLocalImages(d)).toBe(false);
     d.elements.find((e: any) => e.id === 'img2').localId = 'local-1';
     expect(hasLocalImages(d)).toBe(true);
+  });
+
+  // A guest's images live only in their browser. When they sign up, each is uploaded once, as what it is
+  // used for, and the design is pointed at the uploads (components/editor/draft.ts).
+  it('lists the images that are only in the browser, once each, with what each is used as', () => {
+    const d = mutate((d) => {
+      d.page.background.localId = 'local-bg';
+      d.elements.push({ id: 's1', type: 'image', role: 'signature', assetId: null, localId: 'local-sig', x: 0, y: 0, w: 10, h: 10, fit: 'contain', opacity: 1 });
+      d.elements.push({ id: 's2', type: 'image', role: 'signature', assetId: null, localId: 'local-sig', x: 20, y: 0, w: 10, h: 10, fit: 'contain', opacity: 1 });
+      d.elements.push({ id: 'l1', type: 'image', role: 'logo', assetId: 'already-uploaded', localId: null, x: 40, y: 0, w: 10, h: 10, fit: 'contain', opacity: 1 });
+    }) as Design;
+    expect(localImages(d)).toEqual([
+      { localId: 'local-bg', kind: 'background' },
+      { localId: 'local-sig', kind: 'signature' },
+    ]);
+    expect(localImages(presetDesign('classic-ledger'))).toEqual([]);
+  });
+
+  it('points every use of an uploaded image at the upload, and leaves the rest alone', () => {
+    const d = mutate((d) => {
+      d.page.background.localId = 'local-bg';
+      d.elements.push({ id: 's1', type: 'image', role: 'signature', assetId: null, localId: 'local-sig', x: 0, y: 0, w: 10, h: 10, fit: 'contain', opacity: 1 });
+      d.elements.push({ id: 's2', type: 'image', role: 'signature', assetId: null, localId: 'local-sig', x: 20, y: 0, w: 10, h: 10, fit: 'contain', opacity: 1 });
+    }) as Design;
+    const uploaded = '33333333-3333-4333-8333-333333333333';
+    const after = withUploadedImages(d, new Map([['local-sig', uploaded]]));
+    const image = (id: string) => after.elements.find((e) => e.id === id) as { assetId: string | null; localId: string | null };
+    expect([image('s1').assetId, image('s1').localId]).toEqual([uploaded, null]);
+    expect([image('s2').assetId, image('s2').localId]).toEqual([uploaded, null]);
+    expect(after.page.background).toMatchObject({ assetId: null, localId: 'local-bg' }); // not uploaded (yet)
+    expect(designSchema.safeParse(after).success).toBe(true);
+    expect(localImages(withUploadedImages(after, new Map([['local-bg', '44444444-4444-4444-8444-444444444444']])))).toEqual([]);
   });
 
   it('knows which elements change from recipient to recipient', () => {

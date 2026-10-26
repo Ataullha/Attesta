@@ -1,15 +1,16 @@
 import Link from 'next/link';
-import { and, asc, count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUserPage } from '@/lib/auth/session';
 import { certificateFilter } from '@/lib/certificates';
-import { usageThisMonth } from '@/lib/issue';
+import { freeRenewsOn, usageThisMonth } from '@/lib/issue';
 import { emailConfigured } from '@/lib/email';
 import { verifyUrl } from '@/lib/signing';
 import { formatDate } from '@/lib/verify';
-import { limits } from '@/lib/site';
+import { formatMoney, limits, packages } from '@/lib/site';
 import { btn, card, field } from '@/components/ui/styles';
 import { PageTitle } from '@/components/app/Shell';
+import { GettingStarted } from '@/components/app/GettingStarted';
 import { BatchDownload, CertificateActions, ResendVerification } from '@/components/app/Actions';
 
 const PER_PAGE = 25;
@@ -28,7 +29,7 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
   const page = Math.max(1, Number(sp.page) || 1);
 
   const where = certificateFilter(user.id, q);
-  const [used, [{ total }], [{ all }], certs, batches] = await Promise.all([
+  const [used, [{ total }], [{ all }], certs, batches, [org], [{ marks }]] = await Promise.all([
     usageThisMonth(user.id),
     db().select({ total: count() }).from(schema.certificates).where(where),
     db().select({ all: count() }).from(schema.certificates).where(eq(schema.certificates.userId, user.id)),
@@ -48,9 +49,16 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
       .where(and(eq(schema.batches.userId, user.id), eq(schema.batches.mode, 'bulk')))
       .orderBy(desc(schema.batches.createdAt))
       .limit(5),
+    db().select({ id: schema.organizations.id }).from(schema.organizations).where(eq(schema.organizations.ownerUserId, user.id)).limit(1),
+    db()
+      .select({ marks: count() })
+      .from(schema.assets)
+      .where(and(eq(schema.assets.userId, user.id), isNull(schema.assets.deletedAt), inArray(schema.assets.kind, ['signature', 'logo', 'seal']))),
   ]);
   const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
   const freeLeft = Math.max(0, limits.freeMonthly - used);
+  const mustConfirm = !user.emailVerified && emailConfigured();
+  const smallest = packages[0];
 
   return (
     <>
@@ -59,15 +67,62 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
         <Link href="/create" className={btn.primary}>New certificate</Link>
       </PageTitle>
 
-      {!user.emailVerified && emailConfigured() && (
-        <div role="status" className="mb-6 rounded-[4px] border border-brass/30 bg-brass-soft p-4 text-[14.5px]">
-          Confirm your email address to start issuing. We sent a link to {user.email}. <ResendVerification />
-        </div>
+      <GettingStarted
+        steps={[
+          ...(emailConfigured()
+            ? [
+                {
+                  done: !mustConfirm,
+                  blocking: true,
+                  title: 'Confirm your email address',
+                  why: `You can issue certificates once it is confirmed. The link went to ${user.email}.`,
+                  control: <span className="text-[14px]"><ResendVerification /></span>,
+                },
+              ]
+            : []),
+          {
+            done: !!org,
+            title: 'Add your organisation',
+            why: 'Its name then appears as the issuer on every certificate and verification page, rather than yours.',
+            href: '/app/organization',
+            action: 'Add organisation',
+          },
+          {
+            done: Number(marks) > 0,
+            title: 'Upload a signature or logo',
+            why: 'Upload it once and place it on any template.',
+            href: '/app/library',
+            action: 'Upload',
+          },
+          {
+            done: Number(all) > 0,
+            title: 'Issue your first certificate',
+            why: 'Start from a template and fill in a name. Its QR code opens a page that confirms it.',
+            href: '/create',
+            action: 'Open the editor',
+          },
+        ]}
+      />
+
+      {freeLeft === 0 && user.credits === 0 && (
+        <section aria-labelledby="out-h" className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-brass/40 bg-brass-soft p-5">
+          <div className="max-w-[62ch]">
+            <h2 id="out-h" className="text-[17px] font-semibold">{`You have used this month’s ${limits.freeMonthly} free certificates`}</h2>
+            <p className="mt-1 text-[14.5px] leading-relaxed text-ink-2">
+              {`More arrive on ${formatDate(freeRenewsOn())}. To keep issuing now, buy a package: ${smallest.credits.toLocaleString()} certificates for ${formatMoney(smallest.price)}, with bulk issuing from CSV included. Credits never expire.`}
+            </p>
+          </div>
+          <Link href="/app/billing" className={btn.brass}>Buy a package</Link>
+        </section>
       )}
 
       <dl className="mb-10 grid grid-cols-3 gap-px overflow-hidden border border-rule bg-rule">
         <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Free left this month</dt><dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{freeLeft} <span className="text-[15px] text-muted sm:text-[18px]">of {limits.freeMonthly}</span></dd></div>
-        <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Package credits</dt><dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{user.credits.toLocaleString()}</dd>{user.credits === 0 && <Link href="/app/billing" className="mt-1 inline-block text-[12.5px] text-brass underline sm:text-[13.5px]">Buy a package</Link>}</div>
+        <div className="bg-card p-3 sm:p-5">
+          <dt className="text-[12.5px] text-muted sm:text-[13.5px]">Package credits</dt>
+          <dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{user.credits.toLocaleString()}</dd>
+          {user.credits === 0 && <dd className="mt-1"><Link href="/app/billing" className="text-[12.5px] text-brass underline sm:text-[13.5px]">Buy a package</Link></dd>}
+        </div>
         <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Issued in total</dt><dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{Number(all).toLocaleString()}</dd></div>
       </dl>
 
@@ -101,11 +156,30 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
         )}
       </div>
 
-      {certs.length === 0 ? (
+      {certs.length === 0 && q ? (
         <div className={`${card} p-8 text-center`}>
-          <p className="text-[16px]">{q ? 'Nothing matches that search.' : 'You haven’t issued any certificates yet.'}</p>
-          {!q && <Link href="/create" className={btn.primary + ' mt-4'}>Make your first certificate</Link>}
+          <p className="text-[16px]">Nothing matches that search.</p>
+          <Link href="/app" className="mt-2 inline-block text-[14px] text-brass underline underline-offset-2">Show all certificates</Link>
         </div>
+      ) : certs.length === 0 ? (
+        <section aria-labelledby="none-h" className={`${card} p-6 sm:p-8`}>
+          <h2 id="none-h" className="font-serif text-[26px] leading-tight">No certificates yet</h2>
+          <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-ink-2">
+            Everything you issue is listed here with its serial and status, to download again, share or revoke whenever you need to.
+          </p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <Link href="/create" className="block rounded-md border border-rule-2 p-4 transition-colors hover:border-brass">
+              <span className="block font-medium">Make one certificate</span>
+              <span className="mt-1 block text-[14px] leading-snug text-muted">Start from a template, fill in a name and download the PDF.</span>
+            </Link>
+            <Link href="/app/bulk" className="block rounded-md border border-rule-2 p-4 transition-colors hover:border-brass">
+              <span className="block font-medium">Issue a whole group from CSV</span>
+              <span className="mt-1 block text-[14px] leading-snug text-muted">
+                {user.credits > 0 ? 'One row per person; each certificate uses a credit.' : `One row per person. Comes with a package, from ${formatMoney(smallest.price)}.`}
+              </span>
+            </Link>
+          </div>
+        </section>
       ) : (
         // A list rather than a table: one set of markup is a row of aligned columns from `md` up and a
         // stacked card per certificate below it, so Status and the actions (Revoke, PDF…) are never

@@ -88,18 +88,37 @@ Vercel → **Settings → Domains** → add it and follow the DNS instructions. 
 
 **`src/app/(site)/privacy/page.tsx` and `terms/page.tsx`** — starting drafts; have a lawyer review them.
 
+**What the site leaves out on purpose**
+- Testimonials, customer logos and usage numbers: there are none yet, and invented ones would undercut a product whose
+  whole point is trust. Add real ones, with permission, to the landing page once you have them.
+- Analytics: none is installed. If you add one, say so on the privacy page and allow its domain in the content security
+  policy in `next.config.ts`.
+
 ## Email
 Without email configured, new accounts are active immediately and reset links only appear in the Vercel function logs.
 For production, create a free account at resend.com, verify your domain, and set `RESEND_API_KEY` and `EMAIL_FROM`.
 Accounts then need to confirm their email before issuing, which stops throwaway sign-ups from farming free certificates.
 
 ## Ads (AdSense)
-Set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-XXXXXXXX` and redeploy. Ads show on the landing page and certificate-type pages only.
-Replace the placeholder slot IDs (`1000000001`, `1000000002`) in `src/app/(site)/page.tsx` and
-`src/app/(site)/certificate-maker/[slug]/page.tsx` with slot IDs from your AdSense account.
+Set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-XXXXXXXX` and redeploy. Ads show on the certificate-type pages
+(`/certificate-maker/...`) only, below the article. The landing, pricing and verification pages stay ad-free: they are where
+visitors decide to sign up or pay, and an ad there competes with that. Replace the placeholder slot ID (`1000000002`) in
+`src/app/(site)/certificate-maker/[slug]/page.tsx` with a slot ID from your AdSense account; `<AdSlot>` can be added to other
+pages the same way.
 The content security policy opens up for Google’s ad domains automatically when this variable is set.
 
 ---
+
+## From visitor to customer
+- Anyone can use the editor without an account and make `limits.guestLifetime` certificates, marked as unregistered.
+  Pressing **Save**, or reaching that limit, leads to sign-up, and the design comes along: the editor keeps it in the browser,
+  images included, puts it back when they return, and uploads the images to the new account (`src/components/editor/draft.ts`).
+- A new account’s dashboard lists what is left to set up: confirm the email address, add the organisation, upload a signature
+  or logo, issue the first certificate. The list goes once everything on it is done.
+- When the month’s free certificates run out, the dashboard offers a package and says when more arrive. The bulk page shows
+  the packages to accounts without credits, and every “Buy” link opens billing with that package already chosen.
+- Every valid verification page invites its recipient to add the certificate to LinkedIn or share it, and shows other visitors
+  how to issue certificates of their own. Recipients sharing their certificates is how most new issuers will find the site.
 
 ## How payments work
 1. A user picks a package on **Packages and billing**, pays by bKash / Nagad / bank, and submits the transaction ID.
@@ -142,7 +161,7 @@ Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi.
 
 ## Run locally
 
-Needs Node 20.9 or newer (`.nvmrc` pins 22) and a Postgres database.
+Needs Node 20.9 or newer to run, 22.12 or newer for the tests (`.nvmrc` pins 22), and a Postgres database.
 
 ```bash
 npm install
@@ -165,6 +184,13 @@ Useful scripts:
 | `npm run db:migrate` | apply migrations |
 | `npm run keys:generate` | new signing keys |
 | `npm run admin:promote -- email` | make an account admin |
+| `npm run previews` | redraw the template pictures in `public/previews/` (needs `npm run dev` running, and Playwright) |
+
+The template pictures on the public pages are images made by the real certificate renderer, so they cost visitors no
+JavaScript. After changing a template in `src/lib/presets.ts`, run `npm run previews` while the development server is up and
+commit the new files; a unit test fails if a template has no picture or a picture of the wrong shape.
+
+If `npm run dev` reloads the page over and over after upgrading Next.js, stop it, delete `.next/dev`, and start it again.
 
 ## Testing
 Tests that touch the database delete and insert rows, so they use their own database and refuse to run against one
@@ -187,7 +213,8 @@ older than the source. GitHub Actions runs the type check, both suites and the b
 
 ## Project map
 ```
-src/app/(site)/        public pages: landing, templates, certificate-maker/[slug], verify, pricing, legal
+src/app/(site)/        public pages: landing, templates, certificate-maker (use cases), verify, pricing, legal
+src/app/preview/       development-only pages that scripts/render-previews.mjs photographs
 src/app/(auth)/        sign in, register, password reset, email confirmation
 src/app/create/        the certificate editor
 src/app/app/           user panel: certificates, batches, bulk, templates, library, organisation, billing, settings

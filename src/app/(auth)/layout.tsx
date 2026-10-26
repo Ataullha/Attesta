@@ -11,8 +11,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="font-serif text-[26px] leading-none">{site.name}</span>
         </Link>
       </header>
+      {/* Each page sets its own width: most are one narrow column, sign-up has a second one beside it. */}
       <main id="main" className="flex flex-1 items-start justify-center px-5 pb-16 pt-6 sm:pt-12">
-        <div className="w-full max-w-[420px]">{children}</div>
+        {children}
       </main>
     </div>
   );
