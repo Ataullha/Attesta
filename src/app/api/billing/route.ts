@@ -6,6 +6,7 @@ import { isUniqueViolation } from '@/lib/security/db-errors';
 import { HttpError, json, readJson, route } from '@/lib/security/request';
 import { rateLimit } from '@/lib/security/rate-limit';
 import { packages, paymentMethods } from '@/lib/site';
+import { awaitingReview } from '@/lib/payments/online';
 
 const body = z.object({
   packageId: z.string(),
@@ -24,7 +25,7 @@ export const POST = route(async (req) => {
   const [{ n }] = await db()
     .select({ n: count() })
     .from(schema.payments)
-    .where(and(eq(schema.payments.userId, user.id), eq(schema.payments.status, 'pending')));
+    .where(and(eq(schema.payments.userId, user.id), awaitingReview));
   if (Number(n) >= 3) throw new HttpError(400, 'You already have three payments waiting for review. We’ll process those first.');
   try {
     await db().insert(schema.payments).values({

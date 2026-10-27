@@ -9,7 +9,9 @@ import { Tick } from '@/components/site/Tick';
 import { VerifySearch } from '@/components/site/VerifySearch';
 import { PRESETS } from '@/lib/presets';
 import { USE_CASES } from '@/lib/usecases';
-import { formatMoney, limits, packages, paymentMethodsInWords, perCertificate, site } from '@/lib/site';
+import { formatMoney, limits, onlinePaymentMethods, orList, packages, paymentMethodsInWords, perCertificate, site } from '@/lib/site';
+import { payByInWords } from '@/lib/payments/methods';
+import { sslcommerzConfigured } from '@/lib/payments/sslcommerz';
 
 export const metadata: Metadata = { alternates: { canonical: '/' } };
 
@@ -23,7 +25,9 @@ const faqs = [
   },
   {
     q: 'How do I pay?',
-    a: `Choose a package in your dashboard, send the amount by ${paymentMethodsInWords()}, and enter the transaction ID. Credits are added once the payment is confirmed, and they never expire.`,
+    a: sslcommerzConfigured()
+      ? `Choose a package in your dashboard and pay online by ${orList(onlinePaymentMethods)}: the credits are added as soon as the payment goes through. You can also send the amount by ${paymentMethodsInWords()} and enter the transaction ID, and the credits are added once the payment is confirmed. Credits never expire.`
+      : `Choose a package in your dashboard, send the amount by ${paymentMethodsInWords()}, and enter the transaction ID. Credits are added once the payment is confirmed, and they never expire.`,
   },
   {
     q: 'Can I place the name and other details wherever I want?',
@@ -130,7 +134,7 @@ export default function Home() {
           <ul className="mt-6 space-y-1.5 text-[14.5px] text-ink-2">
             <li className="flex gap-2"><Tick />Your first {limits.guestLifetime} need no account</li>
             <li className="flex gap-2"><Tick />{limits.freeMonthly} verifiable certificates a month on a free account</li>
-            <li className="flex gap-2"><Tick />Pay in taka by {paymentMethodsInWords()}</li>
+            <li className="flex gap-2"><Tick />Pay in taka by {payByInWords()}</li>
           </ul>
         </div>
 

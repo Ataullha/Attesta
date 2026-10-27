@@ -3,6 +3,7 @@ import { count, eq, gte, sql } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireAdminPage } from '@/lib/auth/session';
 import { PageTitle } from '@/components/app/Shell';
+import { awaitingReview } from '@/lib/payments/online';
 
 async function n(q: Promise<{ n: number }[]>) {
   return Number((await q)[0]?.n ?? 0);
@@ -16,7 +17,7 @@ export default async function AdminHome() {
     n(d.select({ n: count() }).from(schema.users)),
     n(d.select({ n: count() }).from(schema.certificates)),
     n(d.select({ n: count() }).from(schema.certificates).where(gte(schema.certificates.issuedAt, day))),
-    n(d.select({ n: count() }).from(schema.payments).where(eq(schema.payments.status, 'pending'))),
+    n(d.select({ n: count() }).from(schema.payments).where(awaitingReview)),
     n(d.select({ n: count() }).from(schema.organizations).where(eq(schema.organizations.status, 'pending'))),
     n(d.select({ n: count() }).from(schema.reports).where(eq(schema.reports.status, 'open'))),
     n(d.select({ n: sql<number>`coalesce(sum(${schema.payments.amount}), 0)` }).from(schema.payments).where(eq(schema.payments.status, 'approved'))),

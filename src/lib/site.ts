@@ -59,11 +59,21 @@ export const paymentMethods = [
 
 export type PaymentMethodId = (typeof paymentMethods)[number]['id'];
 
-/** The payment methods as a phrase for a sentence: "bKash, Nagad or bank transfer". */
+/**
+ * What customers can pay with on SSLCommerz's payment page, once online payment is switched on (see
+ * the README). Match it to what your SSLCommerz account offers.
+ */
+export const onlinePaymentMethods = ['card', 'bKash', 'Nagad', 'Rocket', 'internet banking'];
+
+/** Names as a phrase for a sentence: "a, b or c". */
+export function orList(names: readonly string[]) {
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}` : (names[0] ?? '');
+}
+
+/** The ways to send money yourself, as a phrase for a sentence: "bKash, Nagad or bank transfer". */
 export function paymentMethodsInWords() {
   // Brand names keep their capitals; a generic method reads in lower case mid-sentence.
-  const names = paymentMethods.map((m) => (m.id === 'bank' ? m.label.toLowerCase() : m.label));
-  return names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}` : names[0];
+  return orList(paymentMethods.map((m) => (m.id === 'bank' ? m.label.toLowerCase() : m.label)));
 }
 
 export function formatMoney(amount: number, currency = 'BDT') {

@@ -4,15 +4,18 @@ import { btn } from '@/components/ui/styles';
 import { CtaBand } from '@/components/site/CtaBand';
 import { JsonLd } from '@/components/site/JsonLd';
 import { Tick } from '@/components/site/Tick';
-import { formatMoney, limits, packages, paymentMethodsInWords, perCertificate, savingVersusSmallest, site } from '@/lib/site';
+import { formatMoney, limits, onlinePaymentMethods, orList, packages, paymentMethodsInWords, perCertificate, savingVersusSmallest, site } from '@/lib/site';
+import { payByInWords } from '@/lib/payments/methods';
+import { sslcommerzConfigured } from '@/lib/payments/sslcommerz';
 
 export const metadata: Metadata = {
   title: 'Pricing',
-  description: `Start free: ${limits.guestLifetime} certificates without an account and ${limits.freeMonthly} verifiable certificates a month on a free account. Prepaid packages from ${formatMoney(packages[0].price)} for bulk issuing, paid in taka by ${paymentMethodsInWords()}.`,
+  description: `Start free: ${limits.guestLifetime} certificates without an account and ${limits.freeMonthly} verifiable certificates a month on a free account. Prepaid packages from ${formatMoney(packages[0].price)} for bulk issuing, paid in taka by ${payByInWords()}.`,
   alternates: { canonical: '/pricing' },
 };
 
 const largest = packages[packages.length - 1];
+const online = sslcommerzConfigured();
 
 const included = [
   `Bulk issuing from CSV, up to ${limits.bulkMaxRows.toLocaleString()} rows at a time`,
@@ -31,8 +34,18 @@ const faqs = [
   },
   { q: 'Can I issue in bulk on a free account?', a: 'Bulk issuing from a CSV comes with a package. On a free account you issue certificates one at a time from the editor.' },
   { q: 'If I revoke a certificate, do I get the credit back?', a: 'No. A revoked certificate keeps its verification page, which shows that it was revoked and why, so the record still exists.' },
-  { q: 'How long does it take for credits to arrive?', a: 'Credits are added once your transaction ID is matched against the payment, usually within a few hours.' },
-  { q: 'Can I pay by card?', a: `Not at the moment. Payments are by ${paymentMethodsInWords()}.` },
+  {
+    q: 'How long does it take for credits to arrive?',
+    a: online
+      ? 'Paid online, they are added as soon as the payment goes through. If you send the money yourself, they are added once your transaction ID is matched against the payment, usually within a few hours.'
+      : 'Credits are added once your transaction ID is matched against the payment, usually within a few hours.',
+  },
+  {
+    q: 'Can I pay by card?',
+    a: online
+      ? `Yes. Pay online by ${orList(onlinePaymentMethods)} on the payment page of SSLCommerz, a Bangladeshi payment gateway. Your card and account details go to SSLCommerz, never to us.`
+      : `Not at the moment. Payments are by ${paymentMethodsInWords()}.`,
+  },
 ];
 
 const structuredData = [
@@ -62,7 +75,7 @@ export default function PricingPage() {
       <div className="mx-auto max-w-6xl px-5 py-14">
         <h1 className="font-display text-[40px] leading-tight">Simple, prepaid pricing</h1>
         <p className="mt-3 max-w-[60ch] text-[17px] leading-relaxed text-ink-2">
-          Start free, and buy credits when you issue in volume. There is no subscription: credits never expire, and you pay in taka by {paymentMethodsInWords()}.
+          Start free, and buy credits when you issue in volume. There is no subscription: credits never expire, and you pay in taka by {payByInWords()}.
         </p>
 
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
@@ -128,12 +141,20 @@ export default function PricingPage() {
             <div>
               <h3 className="text-[17px] font-semibold">How paying works</h3>
               <ol className="mt-4 space-y-3 text-[15px] text-ink-2">
-                {[
-                  'Choose a package in your dashboard.',
-                  `Send the amount by ${paymentMethodsInWords()}.`,
-                  'Enter the transaction ID and the number or account you paid from.',
-                  'Credits are added once the payment is confirmed, usually within a few hours.',
-                ].map((step, i) => (
+                {(online
+                  ? [
+                      'Choose a package in your dashboard.',
+                      `Pay online by ${orList(onlinePaymentMethods)}.`,
+                      'Credits are added as soon as the payment goes through.',
+                      `Or send the amount yourself by ${paymentMethodsInWords()} and enter the transaction ID. Credits are added once it is confirmed, usually within a few hours.`,
+                    ]
+                  : [
+                      'Choose a package in your dashboard.',
+                      `Send the amount by ${paymentMethodsInWords()}.`,
+                      'Enter the transaction ID and the number or account you paid from.',
+                      'Credits are added once the payment is confirmed, usually within a few hours.',
+                    ]
+                ).map((step, i) => (
                   <li key={step} className="flex gap-3">
                     <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-rule-2 font-mono text-[12.5px] text-accent">{i + 1}</span>
                     {step}

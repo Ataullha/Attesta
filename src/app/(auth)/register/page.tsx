@@ -8,7 +8,8 @@ import { googleConfigured } from '@/lib/auth/google';
 import { Tick } from '@/components/site/Tick';
 import { safeNextPath } from '@/lib/safe-redirect';
 import { DRAFT_RETURN } from '@/components/editor/draft';
-import { formatMoney, limits, packages, paymentMethodsInWords } from '@/lib/site';
+import { formatMoney, limits, packages } from '@/lib/site';
+import { payByInWords } from '@/lib/payments/methods';
 
 // robots.txt already disallows /register; noindex keeps it out of results if it is linked to elsewhere.
 export const metadata: Metadata = {
@@ -55,7 +56,7 @@ export default async function RegisterPage({ searchParams }: PageProps<'/registe
         </ul>
         <p className="mt-7 border-t border-rule pt-5 text-[14.5px] leading-relaxed text-muted">
           Issuing to a whole class or event at once? Packages add bulk issuing from a spreadsheet, from {formatMoney(packages[0].price)} for{' '}
-          {packages[0].credits.toLocaleString()} certificates, paid by {paymentMethodsInWords()}.{' '}
+          {packages[0].credits.toLocaleString()} certificates, paid by {payByInWords()}.{' '}
           <Link href="/pricing" className="text-ink-2 underline underline-offset-2 hover:text-ink">
             See pricing
           </Link>
