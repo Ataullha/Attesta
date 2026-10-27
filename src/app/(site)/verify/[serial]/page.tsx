@@ -43,7 +43,7 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
     return (
       <div className="mx-auto max-w-2xl px-5 py-20">
         <p className="font-mono text-[14px] text-muted">{serial}</p>
-        <h1 className="mt-2 font-serif text-[44px] leading-tight">This is an unregistered guest certificate</h1>
+        <h1 className="mt-2 font-display text-[36px] leading-tight">This is an unregistered guest certificate</h1>
         <p className="mt-4 text-[17px] leading-relaxed text-ink-2">
           It was made with {site.name} without an account, so there is no record of who issued it. It cannot be verified. Ask the issuer for a registered copy.
         </p>
@@ -57,7 +57,7 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
     return (
       <div className="mx-auto max-w-2xl px-5 py-20">
         <p className="font-mono text-[14px] text-muted">{serial || 'No serial'}</p>
-        <h1 className="mt-2 font-serif text-[44px] leading-tight">No certificate has this serial</h1>
+        <h1 className="mt-2 font-display text-[36px] leading-tight">No certificate has this serial</h1>
         <p className="mt-4 text-[17px] leading-relaxed text-ink-2">
           Check each character against the printed certificate — serials never use the letters I, L, O or U. If it still doesn’t match, the certificate was not issued through {site.name}.
         </p>
@@ -68,10 +68,10 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
 
   const tone =
     v.status === 'valid'
-      ? { box: 'border-seal/30 bg-seal-soft', text: 'text-seal', title: 'Valid certificate', color: '#2E6B4F' }
+      ? { box: 'border-seal/30 bg-seal-soft', text: 'text-seal', title: 'Valid certificate' }
       : v.status === 'revoked'
-        ? { box: 'border-revoked/30 bg-revoked-soft', text: 'text-revoked', title: 'This certificate was revoked', color: '#9E3B2B' }
-        : { box: 'border-brass/30 bg-brass-soft', text: 'text-brass', title: 'The record could not be confirmed', color: '#8A5D28' };
+        ? { box: 'border-revoked/30 bg-revoked-soft', text: 'text-revoked', title: 'This certificate was revoked' }
+        : { box: 'border-warn/30 bg-warn-soft', text: 'text-warn', title: 'The record could not be confirmed' };
 
   const url = `${site.url}/verify/${v.serial}`;
   // LinkedIn's "add a certification" form, filled in: the recipient only has to confirm it.
@@ -99,10 +99,10 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
   return (
     <div className="mx-auto max-w-3xl px-5 py-14">
       {v.indexable && <JsonLd data={jsonLd} />}
-      <div className={`flex items-start gap-4 border p-5 ${tone.box}`}>
-        <SealMark size={44} color={tone.color} className="shrink-0" />
+      <div className={`flex items-start gap-4 rounded-xl border p-5 ${tone.box}`}>
+        <SealMark size={44} className={`shrink-0 ${tone.text}`} />
         <div>
-          <h1 className={`font-serif text-[34px] leading-tight ${tone.text}`}>{tone.title}</h1>
+          <h1 className={`font-display text-[28px] leading-tight ${tone.text}`}>{tone.title}</h1>
           <p className="mt-1 text-[15px] text-ink-2">
             {v.status === 'valid' && `Issued by ${v.issuer.name} on ${formatDate(v.issuedAt)}. The signed record matches.`}
             {v.status === 'revoked' && v.revokedAt && `Revoked on ${formatDate(v.revokedAt)}. Reason given: ${v.revokeReason ?? 'not stated'}.`}
@@ -156,8 +156,8 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
       </div>
 
       {v.status !== 'unconfirmed' && (
-        <section aria-labelledby="issue-h" className="mt-12 border border-rule bg-card p-6">
-          <h2 id="issue-h" className="font-serif text-[28px] leading-tight">Issue certificates people can check like this</h2>
+        <section aria-labelledby="issue-h" className="mt-12 rounded-xl border border-rule bg-card p-6">
+          <h2 id="issue-h" className="font-display text-[24px] leading-tight">Issue certificates people can check like this</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
             Give every certificate your organisation issues a page like this one, with a QR code that opens it. Free to start, with packages from {formatMoney(packages[0].price)} for bulk issuing.
           </p>

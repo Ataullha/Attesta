@@ -15,7 +15,7 @@ export default async function VerifyIndex({ searchParams }: PageProps<'/verify'>
   if (raw) redirect(`/verify/${encodeURIComponent(normalizeSerial(raw))}`);
   return (
     <div className="mx-auto max-w-2xl px-5 py-20">
-      <h1 className="font-serif text-[48px] leading-tight">Verify a certificate</h1>
+      <h1 className="font-display text-[40px] leading-tight">Verify a certificate</h1>
       <p className="mt-3 text-[17px] text-ink-2">
         Enter the serial number printed near the QR code. It looks like <span className="font-mono text-[15px]">ATT-7K2Q-9M4D-X1TB</span>.
       </p>

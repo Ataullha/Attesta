@@ -98,7 +98,7 @@ export function Library({ assets }: { assets: Asset[] }) {
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {assets.map((a) => (
             <li key={a.id} className={`${card} overflow-hidden`}>
-              <div className="flex h-36 items-center justify-center bg-[repeating-conic-gradient(#F2EEE6_0%_25%,#FFFDFA_0%_50%)] bg-[length:16px_16px] p-3">
+              <div className="flex h-36 items-center justify-center bg-[repeating-conic-gradient(#EEF2F7_0%_25%,#FFFFFF_0%_50%)] bg-[length:16px_16px] p-3">
                 {urls[a.id] ? <img src={urls[a.id]} alt={a.name} className="max-h-full max-w-full object-contain" /> : <span className="text-[13px] text-muted">Loading…</span>}
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-rule px-3 py-2.5">

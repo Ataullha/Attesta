@@ -70,7 +70,7 @@ export function PasswordForm() {
         <input name="confirm" type={type} autoComplete="new-password" required minLength={10} maxLength={200} className={field.input} />
       </label>
       <label className="flex items-center gap-2 text-[14px] text-ink-2">
-        <input type="checkbox" className="h-4 w-4 accent-brass" checked={show} onChange={(e) => setShow(e.target.checked)} />
+        <input type="checkbox" className="h-4 w-4 accent-accent" checked={show} onChange={(e) => setShow(e.target.checked)} />
         Show passwords
       </label>
       <Status msg={msg} />

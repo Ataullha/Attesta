@@ -30,20 +30,20 @@ export default async function AdminHome() {
     <>
       <PageTitle title="Overview" />
       <h2 className="mb-3 text-[15px] font-semibold">Needs attention</h2>
-      <ul className="grid gap-px overflow-hidden border border-rule bg-rule sm:grid-cols-3">
+      <ul className="grid gap-px overflow-hidden rounded-xl border border-rule bg-rule sm:grid-cols-3">
         {queue.map((q) => (
           <li key={q.href} className="bg-card">
             <Link href={q.href} className="block p-5 hover:bg-paper">
               <span className="text-[13.5px] text-muted">{q.label}</span>
-              <span className={`mt-1 block font-serif text-[40px] leading-none ${q.value ? 'text-brass' : ''}`}>{q.value}</span>
+              <span className={`mt-1 block font-display text-[32px] leading-none ${q.value ? 'text-accent' : ''}`}>{q.value}</span>
             </Link>
           </li>
         ))}
       </ul>
       <h2 className="mb-3 mt-10 text-[15px] font-semibold">Totals</h2>
-      <dl className="grid gap-px overflow-hidden border border-rule bg-rule sm:grid-cols-4">
+      <dl className="grid gap-px overflow-hidden rounded-xl border border-rule bg-rule sm:grid-cols-4">
         {[['Users', users], ['Certificates', certs], ['Issued in last 24 h', today], ['Confirmed revenue (৳)', revenue]].map(([k, v]) => (
-          <div key={k as string} className="bg-card p-5"><dt className="text-[13.5px] text-muted">{k}</dt><dd className="mt-1 font-serif text-[34px] leading-none">{Number(v).toLocaleString()}</dd></div>
+          <div key={k as string} className="bg-card p-5"><dt className="text-[13.5px] text-muted">{k}</dt><dd className="mt-1 font-display text-[28px] leading-none">{Number(v).toLocaleString()}</dd></div>
         ))}
       </dl>
     </>

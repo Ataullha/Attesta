@@ -1,13 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import '@fontsource/instrument-serif/400.css';
-import '@fontsource/instrument-sans/400.css';
-import '@fontsource/instrument-sans/500.css';
-import '@fontsource/instrument-sans/600.css';
+// One variable file per script covers every weight the interface uses. (The certificate editor loads
+// the certificate typefaces itself: components/editor/fonts.ts.)
+import '@fontsource-variable/inter';
 import '@fontsource/jetbrains-mono/400.css';
 // Bangla faces only: the browser downloads them on pages that contain Bangla text, and never otherwise.
 import '@fontsource/hind-siliguri/bengali-400.css';
 import '@fontsource/hind-siliguri/bengali-600.css';
-import '@fontsource/tiro-bangla/bengali-400.css';
+import '@fontsource/hind-siliguri/bengali-700.css';
 import './globals.css';
 import { site } from '@/lib/site';
 
@@ -25,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#F7F4EE',
+  themeColor: '#F8FAFC',
   width: 'device-width',
   initialScale: 1,
 };

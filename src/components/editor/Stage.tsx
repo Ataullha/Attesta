@@ -166,14 +166,14 @@ export function Stage(props: {
   return (
     <div
       ref={wrapRef}
-      className="relative h-full w-full overflow-hidden bg-[#EAE5DA]"
+      className="relative h-full w-full overflow-hidden bg-stage"
       // A tap on empty canvas clears the selection. It is a click, not a pointer-down, so starting
       // to scroll the page with a finger on the stage does not deselect what you were editing.
       onClick={(e) => {
         if (!(e.target as HTMLElement).closest('[data-el]')) props.onSelect(null);
       }}
     >
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_18px_44px_-20px_rgba(25,23,18,0.35)]" style={{ width: W * zoom, height: H * zoom }}>
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_18px_44px_-20px_rgba(15,23,42,0.35)]" style={{ width: W * zoom, height: H * zoom }}>
         <canvas ref={canvasRef} className="absolute inset-0 block" style={{ width: W * zoom, height: H * zoom }} aria-label="Certificate preview" role="img" />
         <div className="absolute inset-0" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
           {design.elements.map((el) => {
@@ -186,14 +186,14 @@ export function Stage(props: {
                 data-el={el.id}
                 // Locked boxes cannot be dragged, so a finger on them should still scroll the page.
                 // On touch screens the hit area grows past the box so thin lines and small marks can be tapped.
-                className={`absolute pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-[''] ${el.locked ? 'cursor-default' : 'cursor-move touch-none'} ${selected ? 'outline outline-[1.5px] outline-brass' : showDashed ? 'outline outline-1 outline-dashed outline-brass/60 hover:outline-brass' : 'hover:outline hover:outline-1 hover:outline-brass/50'}`}
+                className={`absolute pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-[''] ${el.locked ? 'cursor-default' : 'cursor-move touch-none'} ${selected ? 'outline outline-[1.5px] outline-accent' : showDashed ? 'outline outline-1 outline-dashed outline-accent/60 hover:outline-accent' : 'hover:outline hover:outline-1 hover:outline-accent/50'}`}
                 style={{ left: el.x * zoom, top: el.y * zoom, width: Math.max(el.w * zoom, 4), height: Math.max(el.h * zoom, 4) }}
                 onPointerDown={(e) => start(e, el, 'move')}
                 onDoubleClick={() => el.type === 'text' && props.onEditText(el.id)}
                 title={elementLabel(el)}
               >
                 {showDashed && keys.length > 0 && (
-                  <span className="pointer-events-none absolute -top-[18px] left-0 whitespace-nowrap rounded-[2px] bg-brass px-1.5 py-[1px] font-mono text-[10px] leading-[14px] text-card">
+                  <span className="pointer-events-none absolute -top-[18px] left-0 whitespace-nowrap rounded-[2px] bg-accent px-1.5 py-[1px] font-mono text-[10px] leading-[14px] text-card">
                     {keys.map((k) => `{${k}}`).join(' ')}
                   </span>
                 )}
@@ -203,7 +203,7 @@ export function Stage(props: {
                     <span
                       key={dir}
                       onPointerDown={(e) => start(e, el, 'resize', dir)}
-                      className="absolute h-[11px] w-[11px] rounded-[2px] border border-brass bg-card pointer-coarse:h-[14px] pointer-coarse:w-[14px] pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
+                      className="absolute h-[11px] w-[11px] rounded-[2px] border border-accent bg-card pointer-coarse:h-[14px] pointer-coarse:w-[14px] pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
                       style={{
                         cursor: CURSOR[dir],
                         left: dir.includes('w') ? -6 : dir.includes('e') ? 'calc(100% - 5px)' : 'calc(50% - 5.5px)',
@@ -222,7 +222,7 @@ export function Stage(props: {
           ))}
         </div>
       </div>
-      <div className="pointer-events-none absolute bottom-2 left-3 text-[12px] text-muted sm:bottom-3 sm:left-4 sm:text-[12.5px]">
+      <div className="pointer-events-none absolute bottom-2 left-3 text-[12px] text-ink-2 sm:bottom-3 sm:left-4 sm:text-[12.5px]">
         {Math.round(zoom * 100)}% · drag to move
         <span className="hidden pointer-fine:inline"> · Shift keeps proportions · Alt turns off snapping</span>
       </div>

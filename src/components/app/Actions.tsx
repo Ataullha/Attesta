@@ -11,7 +11,7 @@ export function LogoutButton() {
   return (
     <button
       type="button"
-      className="min-h-10 w-full rounded-[4px] px-3 text-left text-[14.5px] text-ink-2 hover:bg-rule/60"
+      className="min-h-10 w-full rounded-lg px-3 text-left text-[14.5px] text-ink-2 hover:bg-rule/60"
       onClick={async () => {
         await postJson('/api/auth/logout', {}).catch(() => null);
         router.replace('/');

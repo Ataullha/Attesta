@@ -105,32 +105,32 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
       />
 
       {freeLeft === 0 && user.credits === 0 && (
-        <section aria-labelledby="out-h" className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-brass/40 bg-brass-soft p-5">
+        <section aria-labelledby="out-h" className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-accent/40 bg-accent-soft p-5">
           <div className="max-w-[62ch]">
             <h2 id="out-h" className="text-[17px] font-semibold">{`You have used this month’s ${limits.freeMonthly} free certificates`}</h2>
             <p className="mt-1 text-[14.5px] leading-relaxed text-ink-2">
               {`More arrive on ${formatDate(freeRenewsOn())}. To keep issuing now, buy a package: ${smallest.credits.toLocaleString()} certificates for ${formatMoney(smallest.price)}, with bulk issuing from CSV included. Credits never expire.`}
             </p>
           </div>
-          <Link href="/app/billing" className={btn.brass}>Buy a package</Link>
+          <Link href="/app/billing" className={btn.primary}>Buy a package</Link>
         </section>
       )}
 
-      <dl className="mb-10 grid grid-cols-3 gap-px overflow-hidden border border-rule bg-rule">
-        <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Free left this month</dt><dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{freeLeft} <span className="text-[15px] text-muted sm:text-[18px]">of {limits.freeMonthly}</span></dd></div>
+      <dl className="mb-10 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-rule bg-rule">
+        <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Free left this month</dt><dd className="mt-1 font-display text-[24px] leading-none sm:text-[30px]">{freeLeft} <span className="text-[15px] text-muted sm:text-[18px]">of {limits.freeMonthly}</span></dd></div>
         <div className="bg-card p-3 sm:p-5">
           <dt className="text-[12.5px] text-muted sm:text-[13.5px]">Package credits</dt>
-          <dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{user.credits.toLocaleString()}</dd>
-          {user.credits === 0 && <dd className="mt-1"><Link href="/app/billing" className="text-[12.5px] text-brass underline sm:text-[13.5px]">Buy a package</Link></dd>}
+          <dd className="mt-1 font-display text-[24px] leading-none sm:text-[30px]">{user.credits.toLocaleString()}</dd>
+          {user.credits === 0 && <dd className="mt-1"><Link href="/app/billing" className="text-[12.5px] text-accent underline sm:text-[13.5px]">Buy a package</Link></dd>}
         </div>
-        <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Issued in total</dt><dd className="mt-1 font-serif text-[28px] leading-none sm:text-[36px]">{Number(all).toLocaleString()}</dd></div>
+        <div className="bg-card p-3 sm:p-5"><dt className="text-[12.5px] text-muted sm:text-[13.5px]">Issued in total</dt><dd className="mt-1 font-display text-[24px] leading-none sm:text-[30px]">{Number(all).toLocaleString()}</dd></div>
       </dl>
 
       {batches.length > 0 && (
         <section className="mb-10">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="text-[17px] font-semibold">Recent bulk batches</h2>
-            <Link href="/app/batches" className="text-[14px] text-brass underline-offset-2 hover:underline">View all batches</Link>
+            <Link href="/app/batches" className="text-[14px] text-accent underline-offset-2 hover:underline">View all batches</Link>
           </div>
           <ul className={`${card} divide-y divide-rule`}>
             {batches.map((b) => (
@@ -159,20 +159,20 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
       {certs.length === 0 && q ? (
         <div className={`${card} p-8 text-center`}>
           <p className="text-[16px]">Nothing matches that search.</p>
-          <Link href="/app" className="mt-2 inline-block text-[14px] text-brass underline underline-offset-2">Show all certificates</Link>
+          <Link href="/app" className="mt-2 inline-block text-[14px] text-accent underline underline-offset-2">Show all certificates</Link>
         </div>
       ) : certs.length === 0 ? (
         <section aria-labelledby="none-h" className={`${card} p-6 sm:p-8`}>
-          <h2 id="none-h" className="font-serif text-[26px] leading-tight">No certificates yet</h2>
+          <h2 id="none-h" className="font-display text-[22px] leading-tight">No certificates yet</h2>
           <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-ink-2">
             Everything you issue is listed here with its serial and status, to download again, share or revoke whenever you need to.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <Link href="/create" className="block rounded-md border border-rule-2 p-4 transition-colors hover:border-brass">
+            <Link href="/create" className="block rounded-xl border border-rule-2 p-4 transition-colors hover:border-accent">
               <span className="block font-medium">Make one certificate</span>
               <span className="mt-1 block text-[14px] leading-snug text-muted">Start from a template, fill in a name and download the PDF.</span>
             </Link>
-            <Link href="/app/bulk" className="block rounded-md border border-rule-2 p-4 transition-colors hover:border-brass">
+            <Link href="/app/bulk" className="block rounded-xl border border-rule-2 p-4 transition-colors hover:border-accent">
               <span className="block font-medium">Issue a whole group from CSV</span>
               <span className="mt-1 block text-[14px] leading-snug text-muted">
                 {user.credits > 0 ? 'One row per person; each certificate uses a credit.' : `One row per person. Comes with a package, from ${formatMoney(smallest.price)}.`}
@@ -210,7 +210,7 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
                   </div>
                   {/* `contents` hands these four to the grid on wide screens; below that they are one wrapping row. */}
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-2 xl:contents">
-                    <Link href={`/verify/${c.serial}`} className="font-mono text-[13px] hover:text-brass" target="_blank">
+                    <Link href={`/verify/${c.serial}`} className="font-mono text-[13px] hover:text-accent" target="_blank">
                       {c.serial}
                     </Link>
                     <span className="text-[13.5px] text-ink-2 xl:text-[14.5px]">{formatDate(c.issuedAt)}</span>

@@ -47,7 +47,7 @@ function Preview({ design, values, assets }: { design: Design; values: Record<st
       cancelled = true;
     };
   }, [design, values, assets]);
-  return <canvas ref={ref} role="img" aria-label="Preview of the selected row" className="block h-auto w-full border border-rule bg-card" style={{ aspectRatio: `${design.page.width} / ${design.page.height}` }} />;
+  return <canvas ref={ref} role="img" aria-label="Preview of the selected row" className="block h-auto w-full rounded-lg border border-rule bg-card" style={{ aspectRatio: `${design.page.width} / ${design.page.height}` }} />;
 }
 
 export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: { templates: TemplateOption[]; initialTemplateId: string | null; credits: number; freeLeft: number }) {
@@ -278,7 +278,7 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
       <section className={`${card} p-5`}>
         <h2 className="text-[17px] font-semibold">2. CSV file</h2>
         <p className="mt-1 text-[14px] text-muted">The first row must be column names. The file is read in your browser — it isn’t uploaded.</p>
-        <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-[4px] border border-dashed border-rule-2 bg-paper px-6 py-8 text-center hover:border-brass">
+        <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-rule-2 bg-paper px-6 py-8 text-center hover:border-accent">
           <input type="file" accept=".csv,text/csv" className="sr-only" disabled={busy} onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
           <span className="text-[15.5px] font-medium">{fileName ? `Loaded ${fileName} — ${raw.length.toLocaleString()} rows` : 'Choose a CSV file'}</span>
           <span className="mt-1 text-[13.5px] text-muted">Up to {limits.bulkMaxRows.toLocaleString()} rows · Excel: File → Save As → CSV UTF-8</span>
@@ -304,7 +304,7 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
                     <td className="py-2.5 pr-4">
                       {f.label}
                       {f.required && <span className="text-revoked"> *</span>}
-                      <code className="ml-2 font-mono text-[11.5px] text-brass">{`{${f.key}}`}</code>
+                      <code className="ml-2 font-mono text-[11.5px] text-accent">{`{${f.key}}`}</code>
                     </td>
                     <td className="py-2.5 pr-4">
                       <select className={field.small} value={mapping[f.key] ?? ''} disabled={busy || issued.some(Boolean)} onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value }))}>
@@ -345,18 +345,18 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
               )}
             </div>
             <div className="space-y-4 text-[14.5px]">
-              <dl className="grid grid-cols-2 gap-px overflow-hidden border border-rule bg-rule">
-                <div className="bg-card p-3"><dt className="text-muted">Ready</dt><dd className="font-serif text-[30px] leading-none text-seal">{ready.length.toLocaleString()}</dd></div>
-                <div className="bg-card p-3"><dt className="text-muted">Need fixing</dt><dd className={`font-serif text-[30px] leading-none ${problems.length ? 'text-revoked' : ''}`}>{problems.length.toLocaleString()}</dd></div>
+              <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-rule bg-rule">
+                <div className="bg-card p-3"><dt className="text-muted">Ready</dt><dd className="font-display text-[24px] leading-none text-seal">{ready.length.toLocaleString()}</dd></div>
+                <div className="bg-card p-3"><dt className="text-muted">Need fixing</dt><dd className={`font-display text-[24px] leading-none ${problems.length ? 'text-revoked' : ''}`}>{problems.length.toLocaleString()}</dd></div>
               </dl>
               {duplicates.length > 0 && (
                 <label className="flex items-start gap-2">
-                  <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brass" checked={skipDuplicates} disabled={busy || issued.some(Boolean)} onChange={(e) => setSkipDuplicates(e.target.checked)} />
+                  <input type="checkbox" className="mt-0.5 h-4 w-4 accent-accent" checked={skipDuplicates} disabled={busy || issued.some(Boolean)} onChange={(e) => setSkipDuplicates(e.target.checked)} />
                   Skip {duplicates.length} duplicate row{duplicates.length === 1 ? '' : 's'} (same values as an earlier row)
                 </label>
               )}
               {problems.length > 0 && (
-                <div className="rounded-[4px] border border-revoked/25 bg-revoked-soft/60 p-3">
+                <div className="rounded-lg border border-revoked/25 bg-revoked-soft/60 p-3">
                   <ul className="max-h-40 space-y-1 overflow-y-auto text-[13.5px] text-revoked">
                     {problems.slice(0, 50).map((r) => (
                       <li key={r.index}>Row {r.index + 2}: {r.errors.join('; ')}</li>
@@ -374,7 +374,7 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
                 </p>
               )}
               {phase !== 'issued' && phase !== 'building' && (
-                <button type="button" className={btn.brass + ' w-full'} disabled={busy || !ready.length || ready.length > available} onClick={issueAll}>
+                <button type="button" className={btn.primary + ' w-full'} disabled={busy || !ready.length || ready.length > available} onClick={issueAll}>
                   {partlyIssued ? 'Continue issuing' : `Issue ${ready.length.toLocaleString()} certificates`}
                 </button>
               )}
@@ -388,19 +388,19 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
                 <span className="tabular-nums">{progress.done.toLocaleString()} / {progress.total.toLocaleString()}</span>
               </div>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-rule" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-                <div className="h-full bg-brass transition-[width]" style={{ width: `${pct}%` }} />
+                <div className="h-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
               </div>
               <p className="mt-2 text-[13px] text-muted">Keep this tab open until it finishes.</p>
             </div>
           )}
 
           {(phase === 'issued' || phase === 'building') && (
-            <div className="mt-6 rounded-[4px] border border-seal/30 bg-seal-soft p-4">
+            <div className="mt-6 rounded-lg border border-seal/30 bg-seal-soft p-4">
               <p className="font-medium text-seal">{issued.filter(Boolean).length.toLocaleString()} certificates registered.</p>
               <fieldset className="mt-3 flex flex-wrap gap-4 text-[14.5px]" disabled={phase === 'building'}>
                 <legend className="sr-only">Download format</legend>
-                <label className="flex items-center gap-2"><input type="radio" name="out" className="accent-brass" checked={output === 'merged'} onChange={() => setOutput('merged')} />One PDF (250 pages per file)</label>
-                <label className="flex items-center gap-2"><input type="radio" name="out" className="accent-brass" checked={output === 'separate'} onChange={() => setOutput('separate')} />Separate PDFs in a ZIP</label>
+                <label className="flex items-center gap-2"><input type="radio" name="out" className="accent-accent" checked={output === 'merged'} onChange={() => setOutput('merged')} />One PDF (250 pages per file)</label>
+                <label className="flex items-center gap-2"><input type="radio" name="out" className="accent-accent" checked={output === 'separate'} onChange={() => setOutput('separate')} />Separate PDFs in a ZIP</label>
               </fieldset>
               <button type="button" className={btn.seal + ' mt-4'} disabled={phase === 'building'} onClick={buildOutput}>
                 {phase === 'building' ? 'Building…' : 'Download certificates'}
@@ -411,7 +411,7 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
         </section>
       )}
 
-      {error && <p role="alert" className="rounded-[4px] border border-revoked/30 bg-revoked-soft p-3 text-[14.5px] text-revoked">{error}</p>}
+      {error && <p role="alert" className="rounded-lg border border-revoked/30 bg-revoked-soft p-3 text-[14.5px] text-revoked">{error}</p>}
     </div>
   );
 }

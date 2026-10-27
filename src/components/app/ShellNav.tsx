@@ -43,8 +43,8 @@ export function ShellNav({ nav, title, user }: { nav: Item[]; title: string; use
       <div className="flex h-14 items-center justify-between px-4 lg:block lg:h-auto lg:px-2">
         <div>
           <Link href="/" className="flex items-center gap-2">
-            <SealMark size={24} color="#8A5D28" />
-            <span className="font-serif text-[24px] leading-none">{site.name}</span>
+            <SealMark size={24} className="text-accent" />
+            <span className="font-display text-[20px] leading-none">{site.name}</span>
           </Link>
           <p className="mt-1 hidden text-[12.5px] text-muted lg:block">{title}</p>
         </div>
@@ -54,7 +54,7 @@ export function ShellNav({ nav, title, user }: { nav: Item[]; title: string; use
           aria-expanded={open}
           aria-controls={menuId}
           onClick={() => setOpenOn(open ? null : pathname)}
-          className="inline-flex min-h-10 items-center gap-2 rounded-[4px] border border-rule-2 px-3 text-[14.5px] text-ink hover:bg-paper lg:hidden"
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-rule-2 px-3 text-[14.5px] text-ink hover:bg-paper lg:hidden"
         >
           {open ? 'Close' : 'Menu'}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
@@ -75,7 +75,7 @@ export function ShellNav({ nav, title, user }: { nav: Item[]; title: string; use
                 key={n.href}
                 href={n.href}
                 aria-current={current ? 'page' : undefined}
-                className={`flex min-h-11 items-center rounded-[4px] px-3 text-[14.5px] lg:min-h-10 ${current ? 'bg-paper font-medium text-ink' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}
+                className={`flex min-h-11 items-center rounded-lg px-3 text-[14.5px] lg:min-h-10 ${current ? 'bg-paper font-medium text-ink' : 'text-ink-2 hover:bg-paper hover:text-ink'}`}
               >
                 {n.label}
               </Link>

@@ -49,7 +49,7 @@ export default async function UseCasePage({ params }: PageProps<'/certificate-ma
         </nav>
         <div className="mt-6 grid items-center gap-10 lg:grid-cols-[1fr_1fr]">
           <div>
-            <h1 className="font-serif text-[42px] leading-[1.05] sm:text-[52px]">{u.title}</h1>
+            <h1 className="font-display text-[34px] leading-[1.05] sm:text-[42px]">{u.title}</h1>
             <p className="mt-5 max-w-[56ch] text-[17px] leading-relaxed text-ink-2">{u.intro}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href={`/create?preset=${u.preset}`} className={btn.primary}>{isBangla ? 'সনদপত্র তৈরি শুরু করুন' : 'Start with this template'}</Link>
@@ -63,7 +63,7 @@ export default async function UseCasePage({ params }: PageProps<'/certificate-ma
             </p>
           </div>
           {preset && (
-            <div className="border border-rule-2 bg-card p-2">
+            <div className="rounded-xl border border-rule-2 bg-card p-2">
               <TemplatePreview slug={preset.slug} label={`${preset.name} template example`} sizes="(min-width: 1024px) 540px, 100vw" priority />
             </div>
           )}
@@ -71,7 +71,7 @@ export default async function UseCasePage({ params }: PageProps<'/certificate-ma
 
         <section className="mt-20 grid gap-10 md:grid-cols-3">
           {u.points.map((p) => (
-            <div key={p.title} className="border-t border-ink pt-5">
+            <div key={p.title} className="border-t-2 border-accent pt-5">
               <h2 className="text-[19px] font-semibold">{p.title}</h2>
               <p className="mt-2 text-[15.5px] leading-relaxed text-ink-2">{p.body}</p>
             </div>
@@ -79,7 +79,7 @@ export default async function UseCasePage({ params }: PageProps<'/certificate-ma
         </section>
 
         <section className="mx-auto mt-20 max-w-3xl">
-          <h2 className="font-serif text-[34px]">{isBangla ? 'প্রশ্ন ও উত্তর' : 'Questions'}</h2>
+          <h2 className="font-display text-[28px]">{isBangla ? 'প্রশ্ন ও উত্তর' : 'Questions'}</h2>
           <dl className="mt-6 divide-y divide-rule border-y border-rule">
             {u.faqs.map((f) => (
               <div key={f.q} className="py-5">
@@ -97,7 +97,7 @@ export default async function UseCasePage({ params }: PageProps<'/certificate-ma
           <ul className="mt-3 flex flex-wrap gap-2">
             {USE_CASES.filter((x) => x.slug !== u.slug).map((x) => (
               <li key={x.slug}>
-                <Link href={`/certificate-maker/${x.slug}`} className="inline-block rounded-full border border-rule-2 px-3.5 py-1.5 text-[14px] text-ink-2 hover:border-brass hover:text-ink">
+                <Link href={`/certificate-maker/${x.slug}`} className="inline-block rounded-full border border-rule-2 px-3.5 py-1.5 text-[14px] text-ink-2 hover:border-accent hover:text-ink">
                   {x.short}
                 </Link>
               </li>

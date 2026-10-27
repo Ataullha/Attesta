@@ -20,14 +20,14 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
     <div className="w-full max-w-[420px]">
       {next === DRAFT_RETURN && <DesignComesWithYou />}
       {googleFailure && (
-        <p role="alert" className="mb-6 rounded-[4px] border border-revoked/30 bg-revoked-soft px-3.5 py-2.5 text-[14.5px] leading-snug text-revoked">
+        <p role="alert" className="mb-6 rounded-lg border border-revoked/30 bg-revoked-soft px-3.5 py-2.5 text-[14.5px] leading-snug text-revoked">
           {googleFailure}
         </p>
       )}
-      <h1 className="font-serif text-[40px] leading-tight">Sign in</h1>
+      <h1 className="font-display text-[32px] leading-tight">Sign in</h1>
       <p className="mb-7 mt-1 text-[15px] text-muted">
         New here?{' '}
-        <Link href={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="text-brass underline underline-offset-2 hover:text-brass-dark">
+        <Link href={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="text-accent underline underline-offset-2 hover:text-accent-dark">
           Create a free account
         </Link>
       </p>

@@ -43,13 +43,13 @@ export function BillingForm({ initialPackage }: { initialPackage?: string }) {
             const saving = savingVersusSmallest(p);
             return (
               // The radio itself is hidden, so the card shows where keyboard focus is.
-              <label key={p.id} className={`cursor-pointer rounded-[4px] border p-4 has-focus-visible:ring-2 has-focus-visible:ring-brass ${pkg === p.id ? 'border-ink bg-card' : 'border-rule bg-card/60 hover:border-rule-2'}`}>
+              <label key={p.id} className={`cursor-pointer rounded-xl border p-4 has-focus-visible:ring-2 has-focus-visible:ring-accent ${pkg === p.id ? 'border-accent bg-card ring-1 ring-accent' : 'border-rule bg-card/60 hover:border-rule-2'}`}>
                 <input type="radio" name="pkg" className="sr-only" checked={pkg === p.id} onChange={() => setPkg(p.id)} />
                 <span className="flex items-baseline justify-between gap-2 text-[14px] text-muted">
                   {p.name}
                   {saving > 0 && <span className="rounded-full bg-seal-soft px-2 py-px text-[12px] font-medium text-seal">Save {saving}%</span>}
                 </span>
-                <span className="block font-serif text-[30px] leading-tight">{p.credits.toLocaleString()} certificates</span>
+                <span className="block font-display text-[24px] leading-tight">{p.credits.toLocaleString()} certificates</span>
                 <span className="block text-[16px] font-medium">{formatMoney(p.price)}</span>
                 <span className="block text-[13px] text-muted">{formatMoney(perCertificate(p))} each</span>
               </label>
@@ -61,13 +61,13 @@ export function BillingForm({ initialPackage }: { initialPackage?: string }) {
         <legend className="mb-3 text-[15px] font-semibold">2. Pay</legend>
         <div className="flex flex-wrap gap-2">
           {paymentMethods.map((x) => (
-            <label key={x.id} className={`cursor-pointer rounded-full border px-4 py-2 text-[14.5px] has-focus-visible:ring-2 has-focus-visible:ring-brass ${method === x.id ? 'border-ink bg-ink text-card' : 'border-rule-2'}`}>
+            <label key={x.id} className={`cursor-pointer rounded-full border px-4 py-2 text-[14.5px] has-focus-visible:ring-2 has-focus-visible:ring-accent ${method === x.id ? 'border-accent bg-accent text-white has-focus-visible:ring-offset-2' : 'border-rule-2 bg-card'}`}>
               <input type="radio" name="method" className="sr-only" checked={method === x.id} onChange={() => setMethod(x.id)} />
               {x.label}
             </label>
           ))}
         </div>
-        <p className="mt-3 rounded-[4px] border border-rule bg-card p-4 text-[15px] leading-relaxed">
+        <p className="mt-3 rounded-lg border border-rule bg-card p-4 text-[15px] leading-relaxed">
           Send <strong>{formatMoney(chosen.price)}</strong> by {m.label}. {m.instructions}
         </p>
       </fieldset>
@@ -83,7 +83,7 @@ export function BillingForm({ initialPackage }: { initialPackage?: string }) {
         </label>
       </fieldset>
       {msg && <p role="status" className={`text-[14.5px] ${msg.ok ? 'text-seal' : 'text-revoked'}`}>{msg.text}</p>}
-      <button className={btn.brass} disabled={busy}>{busy ? 'Submitting…' : 'Submit payment'}</button>
+      <button className={btn.primary} disabled={busy}>{busy ? 'Submitting…' : 'Submit payment'}</button>
     </form>
   );
 }

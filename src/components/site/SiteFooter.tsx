@@ -37,7 +37,7 @@ export function SiteFooter() {
     <footer className="border-t border-rule">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 text-[14px] sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
         <div>
-          <p className="font-serif text-[24px]">{site.name}</p>
+          <p className="font-display text-[20px]">{site.name}</p>
           <p className="mt-2 max-w-[30ch] text-muted">{site.shortDescription}</p>
           <p className="mt-4 text-muted">
             Questions?{' '}

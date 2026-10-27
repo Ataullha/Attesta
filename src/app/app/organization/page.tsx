@@ -7,7 +7,7 @@ import { DnsCheck, OrgForm } from '@/components/app/OrgForms';
 
 const STATUS = {
   unverified: { label: 'Not verified', cls: 'bg-rule text-ink-2' },
-  pending: { label: 'DNS confirmed, waiting for review', cls: 'bg-brass-soft text-brass' },
+  pending: { label: 'DNS confirmed, waiting for review', cls: 'bg-warn-soft text-warn' },
   verified: { label: 'Verified', cls: 'bg-seal text-card' },
   rejected: { label: 'Not approved', cls: 'bg-revoked-soft text-revoked' },
 } as const;
@@ -35,7 +35,7 @@ export default async function OrganizationPage() {
         {org && (
           <section className={`${card} p-6`}>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-serif text-[28px] leading-none">Verified badge</h2>
+              <h2 className="font-display text-[24px] leading-none">Verified badge</h2>
               {s && <span className={`rounded-full px-3 py-1 text-[13px] ${s.cls}`}>{s.label}</span>}
             </div>
             {org.status === 'verified' ? (
@@ -45,7 +45,7 @@ export default async function OrganizationPage() {
             ) : (
               <>
                 <p className="mt-4 text-[15px] leading-relaxed text-ink-2">Prove you control <strong>{org.domain}</strong> by adding this TXT record where you manage its DNS (your domain registrar or Cloudflare):</p>
-                <dl className="mt-4 space-y-2 rounded-[4px] border border-rule bg-paper p-4 text-[14px]">
+                <dl className="mt-4 space-y-2 rounded-lg border border-rule bg-paper p-4 text-[14px]">
                   <div><dt className="text-muted">Type</dt><dd className="font-mono">TXT</dd></div>
                   <div><dt className="text-muted">Name / host</dt><dd className="break-all font-mono">_attesta</dd></div>
                   <div><dt className="text-muted">Value</dt><dd className="break-all font-mono">attesta-verify={org.dnsToken}</dd></div>

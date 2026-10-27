@@ -20,7 +20,7 @@ export default async function AdminReports() {
           {rows.map((r) => (
             <li key={r.id} className={`${card} p-4`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[14px]"><strong>{KIND[r.kind]}</strong> · <Link href={`/verify/${r.serial}`} target="_blank" className="font-mono text-brass underline">{r.serial}</Link> · {formatDate(r.createdAt)}</span>
+                <span className="text-[14px]"><strong>{KIND[r.kind]}</strong> · <Link href={`/verify/${r.serial}`} target="_blank" className="font-mono text-accent underline">{r.serial}</Link> · {formatDate(r.createdAt)}</span>
                 <span className="flex gap-1">
                   {r.kind === 'deindex' && r.certificateId && <AdminAction url={`/api/admin/reports/${r.id}`} body={{ action: 'deindex' }} label="Remove from search" tone="good" />}
                   <AdminAction url={`/api/admin/reports/${r.id}`} body={{ action: 'resolve' }} label="Mark resolved" />

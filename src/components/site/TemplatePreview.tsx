@@ -41,10 +41,10 @@ export function TemplatePreview({
       decoding="async"
       className={
         framed
-          ? `block h-full w-full object-contain ${portrait ? 'drop-shadow-[0_1px_3px_rgb(0_0_0/0.14)]' : ''} ${className}`
-          : `block h-auto w-full bg-card ${className}`
+          ? `block h-full w-full object-contain ${portrait ? 'drop-shadow-[0_1px_3px_rgb(0_0_0/0.14)]' : 'rounded-md'} ${className}`
+          : `block h-auto w-full rounded-md bg-card ${className}`
       }
     />
   );
-  return framed ? <div className={`aspect-[297/210] bg-card ${portrait ? 'py-3' : ''}`}>{img}</div> : img;
+  return framed ? <div className={`aspect-[297/210] rounded-md bg-card ${portrait ? 'py-3' : ''}`}>{img}</div> : img;
 }

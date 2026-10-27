@@ -22,7 +22,7 @@ export function NavLinks() {
             key={l.href}
             href={l.href}
             aria-current={current ? 'page' : undefined}
-            className={`py-1 hover:text-ink ${current ? 'text-ink underline decoration-brass decoration-2 underline-offset-[6px]' : ''}`}
+            className={`py-1 hover:text-ink ${current ? 'text-ink underline decoration-accent decoration-2 underline-offset-[6px]' : ''}`}
           >
             {l.label}
           </Link>

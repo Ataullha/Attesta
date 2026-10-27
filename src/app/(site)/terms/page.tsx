@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Terms of use', alternates: { canonic
 export default function Terms() {
   return (
     <div className="prose-body mx-auto max-w-3xl px-5 py-14">
-      <h1 className="font-serif text-[46px] leading-tight">Terms of use</h1>
+      <h1 className="font-display text-[38px] leading-tight">Terms of use</h1>
       <p>These terms are a starting point. Have them reviewed by a lawyer before launch.</p>
       <h2>Your responsibility as an issuer</h2>
       <p>You may only issue certificates you are entitled to issue, in your own name or your organisation’s. You are responsible for the accuracy of what you issue and for having permission to use any signature, logo or seal you upload.</p>

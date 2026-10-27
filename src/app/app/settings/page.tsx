@@ -27,7 +27,7 @@ export default async function SettingsPage() {
       <PageTitle title="Account settings" />
       <div className="max-w-3xl space-y-8">
         <section className={`${card} p-6`} aria-labelledby="account-h">
-          <h2 id="account-h" className="font-serif text-[26px] leading-none">Your account</h2>
+          <h2 id="account-h" className="font-display text-[22px] leading-none">Your account</h2>
           <dl className="mt-5 space-y-3 text-[15px]">
             <div className="grid gap-1 sm:grid-cols-[140px_1fr]">
               <dt className="text-muted">Name</dt>
@@ -41,7 +41,7 @@ export default async function SettingsPage() {
                 {user.emailVerified ? (
                   <span className="ml-1 inline-block whitespace-nowrap rounded-full bg-seal-soft px-2.5 py-0.5 text-[12.5px] text-seal">Confirmed</span>
                 ) : (
-                  <span className="ml-1 inline-block whitespace-nowrap rounded-full bg-brass-soft px-2.5 py-0.5 text-[12.5px] text-brass">Not confirmed</span>
+                  <span className="ml-1 inline-block whitespace-nowrap rounded-full bg-warn-soft px-2.5 py-0.5 text-[12.5px] text-warn">Not confirmed</span>
                 )}
                 {!user.emailVerified && emailConfigured() && (
                   <span className="mt-1 block text-[14px]">
@@ -70,7 +70,7 @@ export default async function SettingsPage() {
         </section>
 
         <section className={`${card} p-6`} aria-labelledby="password-h">
-          <h2 id="password-h" className="font-serif text-[26px] leading-none">Password</h2>
+          <h2 id="password-h" className="font-display text-[22px] leading-none">Password</h2>
           {row && !row.hasPassword ? (
             <>
               <p className="mb-5 mt-2 text-[15px] leading-relaxed text-ink-2">
@@ -87,7 +87,7 @@ export default async function SettingsPage() {
         </section>
 
         <section className={`${card} p-6`} aria-labelledby="devices-h">
-          <h2 id="devices-h" className="mb-3 font-serif text-[26px] leading-none">Where you’re signed in</h2>
+          <h2 id="devices-h" className="mb-3 font-display text-[22px] leading-none">Where you’re signed in</h2>
           <SignOutElsewhere others={others} />
         </section>
       </div>

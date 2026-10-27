@@ -103,8 +103,8 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             // Errors interrupt a screen reader; everything else waits for a pause.
             role={t.tone === 'error' ? 'alert' : 'status'}
-            className={`pointer-events-auto flex max-w-md items-start gap-3 rounded-[6px] border px-4 py-2.5 text-[14px] shadow-[0_10px_30px_-12px_rgba(25,23,18,0.5)] ${
-              t.tone === 'error' ? 'border-revoked/30 bg-revoked-soft text-revoked' : t.tone === 'success' ? 'border-seal/30 bg-seal-soft text-seal' : 'border-brass/30 bg-brass-soft text-ink'
+            className={`pointer-events-auto flex max-w-md items-start gap-3 rounded-xl border px-4 py-2.5 text-[14px] shadow-[0_10px_30px_-12px_rgba(15,23,42,0.5)] ${
+              t.tone === 'error' ? 'border-revoked/30 bg-revoked-soft text-revoked' : t.tone === 'success' ? 'border-seal/30 bg-seal-soft text-seal' : 'border-accent/30 bg-accent-soft text-ink'
             }`}
           >
             <span className="min-w-0 flex-1">{t.text}</span>
@@ -161,7 +161,7 @@ function DialogView({ pending, onDone }: { pending: Pending; onDone: () => void 
         cancel();
       }}
       onClose={cancel}
-      className="m-auto w-[min(92vw,26rem)] rounded-[6px] border border-rule bg-card p-0 text-ink shadow-[0_24px_60px_-20px_rgba(25,23,18,0.55)] backdrop:bg-ink/40"
+      className="m-auto w-[min(92vw,26rem)] rounded-xl border border-rule bg-card p-0 text-ink shadow-[0_24px_60px_-20px_rgba(15,23,42,0.55)] backdrop:bg-ink/40"
     >
       <form
         method="dialog"
@@ -178,7 +178,7 @@ function DialogView({ pending, onDone }: { pending: Pending; onDone: () => void 
           settle(value);
         }}
       >
-        <h2 id={titleId} className="font-serif text-[26px] leading-tight">
+        <h2 id={titleId} className="font-display text-[22px] leading-tight">
           {options.title}
         </h2>
         {options.message && (
@@ -216,7 +216,7 @@ function DialogView({ pending, onDone }: { pending: Pending; onDone: () => void 
           <button
             type="submit"
             data-autofocus={pending.kind === 'confirm' && !danger ? '' : undefined}
-            className={danger ? `${btn.base} bg-revoked text-card hover:bg-[#832F22]` : btn.primary}
+            className={danger ? `${btn.base} bg-revoked text-card hover:bg-revoked-dark` : btn.primary}
           >
             {options.confirmLabel ?? (danger ? 'Delete' : 'Confirm')}
           </button>

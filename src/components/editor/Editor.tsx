@@ -437,7 +437,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     : `Without an account you can make ${guestLimit} watermarked certificates. A free account gives you verifiable ones.`;
 
   const iconButton =
-    'inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-[4px] text-ink-2 transition-colors hover:bg-rule/60 disabled:pointer-events-none disabled:opacity-40 sm:min-w-0 sm:px-2.5 sm:text-[13.5px]';
+    'inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg text-ink-2 transition-colors hover:bg-rule/60 disabled:pointer-events-none disabled:opacity-40 sm:min-w-0 sm:px-2.5 sm:text-[13.5px]';
 
   return (
     // Below `lg` the page scrolls: a sticky header and stage stay in view while the panels pass beneath.
@@ -447,13 +447,13 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-rule bg-card px-3 sm:gap-3 sm:px-4 lg:static short:static">
         <h1 className="sr-only">Certificate editor</h1>
         <Link href={user ? '/app' : '/'} className="flex shrink-0 items-center gap-2 text-ink" aria-label={`${site.name} — ${user ? 'your dashboard' : 'home'}`}>
-          <SealMark size={24} color="#8A5D28" />
-          <span className="hidden font-serif text-[22px] leading-none sm:inline">{site.name}</span>
+          <SealMark size={24} className="text-accent" />
+          <span className="hidden font-display text-[18px] leading-none sm:inline">{site.name}</span>
         </Link>
         <span className="hidden h-6 w-px bg-rule sm:block" />
         <label className="min-w-0 flex-1 sm:max-w-xs">
           <span className="sr-only">Template name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className="w-full truncate rounded-[4px] border border-transparent bg-transparent px-2 py-1.5 text-[15px] hover:border-rule focus:border-brass focus:outline-none" />
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className="w-full truncate rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-[15px] hover:border-rule focus:border-accent focus:outline-none" />
         </label>
         <span className="hidden text-[12.5px] text-muted md:block" aria-live="polite">
           {user ? (saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes') : 'Guest mode — a free account saves your work'}
@@ -468,12 +468,12 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
             <span className="hidden sm:inline">Redo</span>
           </button>
           <label className="ml-1 hidden items-center gap-1.5 text-[13px] text-ink-2 sm:flex">
-            <input type="checkbox" className="h-4 w-4 accent-brass" checked={showBoxes} onChange={(e) => setShowBoxes(e.target.checked)} />
+            <input type="checkbox" className="h-4 w-4 accent-accent" checked={showBoxes} onChange={(e) => setShowBoxes(e.target.checked)} />
             Show field boxes
           </label>
           <button
             type="button"
-            className={btn.small + ' ml-1 min-h-10 bg-ink px-3.5 text-card hover:bg-ink-2'}
+            className={btn.small + ' ml-1 min-h-10 bg-accent px-3.5 font-medium text-white hover:bg-accent-dark'}
             onClick={save}
             disabled={saveState === 'saving'}
             // The visible label is shortened on phones, so the full meaning is stated once, here.
@@ -489,7 +489,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
       {/* A toast rather than an in-flow banner, so messages never push the stage around. */}
       <div aria-live="polite" className="pointer-events-none fixed inset-x-3 bottom-4 z-50 flex justify-center">
         {notice && (
-          <div className="max-w-md rounded-[6px] border border-brass/30 bg-brass-soft px-4 py-2.5 text-[13.5px] text-ink shadow-[0_10px_30px_-12px_rgba(25,23,18,0.5)]">{notice}</div>
+          <div className="max-w-md rounded-xl border border-accent/30 bg-accent-soft px-4 py-2.5 text-[13.5px] text-ink shadow-[0_10px_30px_-12px_rgba(15,23,42,0.5)]">{notice}</div>
         )}
       </div>
 
@@ -498,7 +498,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
             tools | stage | settings on wide screens. */}
         <main
           id="main"
-          className={`sticky top-14 z-20 flex shrink-0 flex-col border-b border-rule bg-[#EAE5DA] [@media(max-height:560px)]:static lg:static lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:border-b-0 short:h-auto short:min-w-0 short:flex-1 short:border-b-0 short:border-r ${
+          className={`sticky top-14 z-20 flex shrink-0 flex-col border-b border-rule bg-stage [@media(max-height:560px)]:static lg:static lg:order-2 lg:h-auto lg:min-w-0 lg:flex-1 lg:border-b-0 short:h-auto short:min-w-0 short:flex-1 short:border-b-0 short:border-r ${
             typing ? 'h-[26dvh]' : 'h-[clamp(220px,44dvh,560px)]'
           }`}
         >
@@ -524,7 +524,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
               type="button"
               aria-pressed={panel === 'tools'}
               onClick={() => showPanel('tools')}
-              className={`flex-1 border-b-2 px-2 text-[14px] ${panel === 'tools' ? 'border-brass font-medium text-ink' : 'border-transparent text-muted'}`}
+              className={`flex-1 border-b-2 px-2 text-[14px] ${panel === 'tools' ? 'border-accent font-medium text-ink' : 'border-transparent text-muted'}`}
             >
               Design tools
             </button>
@@ -532,12 +532,12 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
               type="button"
               aria-pressed={panel === 'details'}
               onClick={() => showPanel('details')}
-              className={`flex-1 truncate border-b-2 px-2 text-[14px] ${panel === 'details' ? 'border-brass font-medium text-ink' : 'border-transparent text-muted'}`}
+              className={`flex-1 truncate border-b-2 px-2 text-[14px] ${panel === 'details' ? 'border-accent font-medium text-ink' : 'border-transparent text-muted'}`}
             >
               {selected ? `Edit ${ELEMENT_LABELS[selected.type].toLowerCase()}` : 'Fill & issue'}
             </button>
             <label className="flex items-center gap-1.5 border-l border-rule px-3 text-[12.5px] text-ink-2 sm:hidden">
-              <input type="checkbox" className="h-4 w-4 accent-brass" checked={showBoxes} onChange={(e) => setShowBoxes(e.target.checked)} />
+              <input type="checkbox" className="h-4 w-4 accent-accent" checked={showBoxes} onChange={(e) => setShowBoxes(e.target.checked)} />
               Boxes
             </label>
           </div>

@@ -20,7 +20,7 @@ export function GoogleButton({ next, divider }: { next?: string; divider: string
     <>
       <a
         href={`/api/auth/google${next ? `?next=${encodeURIComponent(next)}` : ''}`}
-        className="flex min-h-11 w-full items-center justify-center gap-3 rounded-[4px] border border-[#747775] bg-white px-4 text-[15px] font-medium text-[#1F1F1F] transition-colors hover:bg-[#F7F8F8]"
+        className="flex min-h-11 w-full items-center justify-center gap-3 rounded-lg border border-[#747775] bg-white px-4 text-[15px] font-medium text-[#1F1F1F] transition-colors hover:bg-[#F7F8F8]"
       >
         <GoogleG />
         Continue with Google

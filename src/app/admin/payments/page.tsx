@@ -20,7 +20,7 @@ export default async function AdminPayments({ searchParams }: PageProps<'/admin/
   return (
     <>
       <PageTitle title="Payments">
-        <a href={status ? '?status=all' : '?'} className="text-[14px] text-brass underline">{status ? 'Show all' : 'Show pending only'}</a>
+        <a href={status ? '?status=all' : '?'} className="text-[14px] text-accent underline">{status ? 'Show all' : 'Show pending only'}</a>
       </PageTitle>
       <p className="-mt-4 mb-6 text-[14.5px] text-ink-2">Match each transaction ID against your bKash, Nagad or bank statement before confirming. Confirming adds the credits immediately.</p>
       {rows.length === 0 ? <p className="text-muted">Nothing here.</p> : (
