@@ -78,7 +78,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`min-h-11 flex-1 border-b-2 px-1 text-[13.5px] ${tab === t.id ? 'border-brass text-ink' : 'border-transparent text-muted hover:text-ink'}`}
+            className={`min-h-11 flex-1 border-b-2 px-1 text-[13.5px] ${tab === t.id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'}`}
           >
             {t.label}
           </button>
@@ -94,21 +94,21 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                   key={it.label}
                   type="button"
                   onClick={() => onAdd(it.type, it.role)}
-                  className="flex min-h-[74px] flex-col items-start justify-between rounded-[4px] border border-rule bg-card p-2.5 text-left hover:border-brass"
+                  className="flex min-h-[74px] flex-col items-start justify-between rounded-lg border border-rule bg-card p-2.5 text-left hover:border-accent"
                 >
                   <span className="text-[13.5px] font-medium text-ink">{it.label}</span>
                   <span className="text-[11.5px] leading-tight text-muted">{it.hint}</span>
                 </button>
               ))}
             </div>
-            <div className="mt-6 rounded-[4px] border border-dashed border-rule-2 p-3.5">
+            <div className="mt-6 rounded-lg border border-dashed border-rule-2 p-3.5">
               <h2 className="text-[14px] font-semibold">Add a field box</h2>
               <p className="mt-1 text-[12.5px] leading-snug text-muted">
                 A box whose text changes for every recipient — like roll number, grade or event name. Drag it where you want it.
               </p>
               <div className="mt-3 flex gap-2">
                 <input className={field.small} placeholder="e.g. Roll number" value={newLabel} maxLength={60} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addField(true)} />
-                <button type="button" className={btn.small + ' bg-ink text-card hover:bg-ink-2'} onClick={() => addField(true)}>
+                <button type="button" className={btn.small + ' bg-accent font-medium text-white hover:bg-accent-dark'} onClick={() => addField(true)}>
                   Add
                 </button>
               </div>
@@ -122,7 +122,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
               Fields are the details that change per certificate. In bulk issuing, each CSV column is matched to one of these.
             </p>
             {design.fields.map((f) => (
-              <div key={f.key} className="rounded-[4px] border border-rule bg-card p-3">
+              <div key={f.key} className="rounded-lg border border-rule bg-card p-3">
                 <div className="flex items-center justify-between gap-2">
                   <input className={field.small + ' font-medium'} value={f.label} maxLength={60} aria-label="Field label" onChange={(e) => updateField(f.key, { label: e.target.value || f.key })} />
                   {f.key !== 'recipient_name' && (
@@ -132,7 +132,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                   )}
                 </div>
                 <div className="mt-1.5 flex items-center justify-between">
-                  <code className="font-mono text-[11px] text-brass">{`{{${f.key}}}`}</code>
+                  <code className="font-mono text-[11px] text-accent">{`{{${f.key}}}`}</code>
                   {!usedKeys.has(f.key) && f.type !== 'email' && <span className="text-[11.5px] text-revoked">Not on the certificate yet</span>}
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -151,16 +151,16 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                 </div>
                 <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">
                   <label className="flex items-center gap-1.5 text-[12.5px]">
-                    <input type="checkbox" className="h-4 w-4 accent-brass" checked={f.required} disabled={f.key === 'recipient_name'} onChange={(e) => updateField(f.key, { required: e.target.checked })} />
+                    <input type="checkbox" className="h-4 w-4 accent-accent" checked={f.required} disabled={f.key === 'recipient_name'} onChange={(e) => updateField(f.key, { required: e.target.checked })} />
                     Required
                   </label>
                   <label className="flex items-center gap-1.5 text-[12.5px]">
-                    <input type="checkbox" className="h-4 w-4 accent-brass" checked={f.public && f.type !== 'email'} disabled={f.type === 'email'} onChange={(e) => updateField(f.key, { public: e.target.checked })} />
+                    <input type="checkbox" className="h-4 w-4 accent-accent" checked={f.public && f.type !== 'email'} disabled={f.type === 'email'} onChange={(e) => updateField(f.key, { public: e.target.checked })} />
                     Show on verification page
                   </label>
                 </div>
                 {f.type !== 'email' && (
-                  <button type="button" className="mt-2 text-[12.5px] text-brass underline-offset-2 hover:underline" onClick={() => onAddFieldBox(f)}>
+                  <button type="button" className="mt-2 text-[12.5px] text-accent underline-offset-2 hover:underline" onClick={() => onAddFieldBox(f)}>
                     Place another box for this field
                   </button>
                 )}
@@ -168,7 +168,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
             ))}
             <div className="flex gap-2 pt-1">
               <input className={field.small} placeholder="New field label" value={newLabel} maxLength={60} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addField(true)} />
-              <button type="button" className={btn.small + ' bg-ink text-card hover:bg-ink-2'} onClick={() => addField(true)}>
+              <button type="button" className={btn.small + ' bg-accent font-medium text-white hover:bg-accent-dark'} onClick={() => addField(true)}>
                 Add field
               </button>
             </div>
@@ -177,13 +177,13 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
 
         {tab === 'page' && (
           <div className="space-y-5 p-4">
-            <section className="rounded-[4px] border border-rule bg-card p-3.5">
+            <section className="rounded-lg border border-rule bg-card p-3.5">
               <h2 className="text-[14px] font-semibold">Use your own certificate design</h2>
               <p className="mt-1 text-[12.5px] leading-snug text-muted">
                 Upload a PNG or JPG of a certificate you designed elsewhere (Canva, Illustrator, Photoshop) with the name area left blank. Then drag field boxes onto it.
               </p>
               <label className="mt-3 flex items-center gap-2 text-[12.5px]">
-                <input type="checkbox" className="h-4 w-4 accent-brass" checked={matchPage} onChange={(e) => setMatchPage(e.target.checked)} />
+                <input type="checkbox" className="h-4 w-4 accent-accent" checked={matchPage} onChange={(e) => setMatchPage(e.target.checked)} />
                 Resize the page to match the image
               </label>
               <input
@@ -253,7 +253,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                 type="color"
                 value={design.page.background.color}
                 onChange={(e) => setDesign((d) => ({ ...d, page: { ...d.page, background: { ...d.page.background, color: e.target.value } } }))}
-                className="h-9 w-11 cursor-pointer rounded-[4px] border border-rule-2 bg-card p-1"
+                className="h-9 w-11 cursor-pointer rounded-lg border border-rule-2 bg-card p-1"
               />
             </label>
           </div>
@@ -266,7 +266,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                 <button
                   type="button"
                   onClick={() => onSelect(el.id)}
-                  className={`flex min-h-10 w-full items-center justify-between gap-2 rounded-[4px] px-2.5 text-left text-[13px] ${el.id === selectedId ? 'bg-brass-soft text-ink' : 'text-ink-2 hover:bg-card'}`}
+                  className={`flex min-h-10 w-full items-center justify-between gap-2 rounded-lg px-2.5 text-left text-[13px] ${el.id === selectedId ? 'bg-accent-soft text-ink' : 'text-ink-2 hover:bg-card'}`}
                 >
                   <span className="truncate">{elementLabel(el)}</span>
                   <span className="shrink-0 text-[11px] text-muted">{el.locked ? 'Locked' : el.type}</span>

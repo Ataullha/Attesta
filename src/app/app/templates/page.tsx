@@ -40,7 +40,7 @@ export default async function MyTemplates() {
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {PRESETS.map((p) => (
           <li key={p.slug}>
-            <Link href={`/create?preset=${p.slug}`} className={`${card} block p-4 hover:border-brass`}>
+            <Link href={`/create?preset=${p.slug}`} className={`${card} block p-4 hover:border-accent`}>
               <span className="block font-medium">{p.name}</span>
               <span className="text-[13.5px] text-muted">{p.description}</span>
             </Link>

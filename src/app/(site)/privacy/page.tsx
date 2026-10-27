@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Privacy policy', alternates: { canon
 export default function Privacy() {
   return (
     <div className="prose-body mx-auto max-w-3xl px-5 py-14">
-      <h1 className="font-serif text-[46px] leading-tight">Privacy policy</h1>
+      <h1 className="font-display text-[38px] leading-tight">Privacy policy</h1>
       <p>This policy explains what {site.name} stores and why. Have it reviewed by a lawyer for your jurisdiction before launch.</p>
       <h2>What we store</h2>
       <ul>

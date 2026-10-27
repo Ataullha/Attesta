@@ -114,8 +114,8 @@ export default function Home() {
 
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-12 lg:grid-cols-[1.05fr_1fr] lg:pt-20">
         <div>
-          <p className="font-mono text-[12.5px] uppercase tracking-[0.12em] text-brass">For training centres, universities, events and employers</p>
-          <h1 className="mt-4 font-serif text-[44px] leading-[1.02] tracking-[-0.01em] sm:text-[64px]">Certificates anyone can check in one scan.</h1>
+          <p className="font-mono text-[12.5px] uppercase tracking-[0.12em] text-accent">For training centres, universities, events and employers</p>
+          <h1 className="mt-4 font-display text-[36px] leading-[1.02] sm:text-[52px]">Certificates anyone can check in one scan.</h1>
           <p className="mt-6 max-w-[54ch] text-[18px] leading-relaxed text-ink-2">
             Design once, issue one certificate or thousands from a spreadsheet, and give each one a signed verification page. Recipients prove it with a link, employers check it in seconds, and forgeries stand out.
           </p>
@@ -135,11 +135,11 @@ export default function Home() {
         </div>
 
         <div className="relative pb-6">
-          <div className="rotate-[-1.2deg] border border-rule-2 bg-card p-2 shadow-[0_30px_60px_-30px_rgba(25,23,18,0.45)]">
+          <div className="rotate-[-1.2deg] border border-rule-2 bg-card p-2 shadow-[0_30px_60px_-30px_rgba(15,23,42,0.45)]">
             <TemplatePreview slug="classic-ledger" label="Example completion certificate with a QR code and a signature line" sizes="(min-width: 1024px) 540px, 100vw" priority />
           </div>
-          <div className="absolute bottom-0 right-2 flex max-w-[260px] items-start gap-3 border border-seal/30 bg-seal-soft px-4 py-3 shadow-[0_12px_30px_-18px_rgba(46,107,79,0.6)] sm:right-6">
-            <SealMark size={30} color="#2E6B4F" className="mt-0.5 shrink-0" />
+          <div className="absolute bottom-0 right-2 flex max-w-[260px] items-start gap-3 rounded-xl border border-seal/30 bg-seal-soft px-4 py-3 shadow-[0_12px_30px_-18px_rgba(46,107,79,0.6)] sm:right-6">
+            <SealMark size={30} className="mt-0.5 shrink-0 text-seal" />
             <p className="text-[13.5px] leading-snug text-seal">
               <span className="block font-semibold">Valid certificate</span>
               Issued 21 September 2026 · signature confirmed
@@ -160,14 +160,14 @@ export default function Home() {
       </section>
 
       <section className="mx-auto max-w-6xl px-5 py-20" aria-labelledby="who-h">
-        <h2 id="who-h" className="max-w-[24ch] font-serif text-[40px] leading-tight">One certificate, three people who need to trust it</h2>
+        <h2 id="who-h" className="max-w-[24ch] font-display text-[32px] leading-tight">One certificate, three people who need to trust it</h2>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {audiences.map((a) => (
-            <div key={a.who} className="flex flex-col border border-rule bg-card p-6">
-              <p className="font-mono text-[12.5px] uppercase tracking-[0.1em] text-brass">{a.who}</p>
-              <h3 className="mt-3 font-serif text-[27px] leading-tight">{a.title}</h3>
+            <div key={a.who} className="flex flex-col rounded-xl border border-rule bg-card p-6">
+              <p className="font-mono text-[12.5px] uppercase tracking-[0.1em] text-accent">{a.who}</p>
+              <h3 className="mt-3 font-display text-[22px] leading-tight">{a.title}</h3>
               <p className="mt-3 flex-1 text-[15.5px] leading-relaxed text-ink-2">{a.body}</p>
-              <Link href={a.link[1]} className="mt-5 text-[15px] font-medium text-brass underline underline-offset-4 hover:text-brass-dark">
+              <Link href={a.link[1]} className="mt-5 text-[15px] font-medium text-accent underline underline-offset-4 hover:text-accent-dark">
                 {a.link[0]}
               </Link>
             </div>
@@ -177,16 +177,16 @@ export default function Home() {
 
       <section id="how" className="scroll-mt-20 border-t border-rule" aria-labelledby="how-h">
         <div className="mx-auto max-w-6xl px-5 py-20">
-          <h2 id="how-h" className="font-serif text-[40px] leading-tight">From design to a checkable record</h2>
+          <h2 id="how-h" className="font-display text-[32px] leading-tight">From design to a checkable record</h2>
           <ol className="mt-10 grid gap-10 md:grid-cols-3">
             {[
               ['Design', 'Start from a template or upload your own certificate image. Drag boxes for the name, course, date, signature, QR code and any custom fields you add.'],
               ['Issue', 'Fill in one person’s details, or upload a CSV and match its columns to your boxes. Download one PDF or a ZIP of separate files.'],
               ['Verify', 'Anyone scans the QR code or enters the serial. The page shows the issuer, the date, the signed record and any revocation.'],
             ].map(([t, d], i) => (
-              <li key={t} className="border-t border-ink pt-5">
-                <span className="font-mono text-[13px] text-brass">Step {i + 1}</span>
-                <h3 className="mt-2 font-serif text-[28px] leading-none">{t}</h3>
+              <li key={t} className="border-t-2 border-accent pt-5">
+                <span className="font-mono text-[13px] text-accent">Step {i + 1}</span>
+                <h3 className="mt-2 font-display text-[24px] leading-none">{t}</h3>
                 <p className="mt-3 text-[15.5px] leading-relaxed text-ink-2">{d}</p>
               </li>
             ))}
@@ -201,7 +201,7 @@ export default function Home() {
 
       <section className="bg-ink text-card" aria-labelledby="features-h">
         <div className="mx-auto max-w-6xl px-5 py-20">
-          <h2 id="features-h" className="max-w-[22ch] font-serif text-[40px] leading-tight">Built for organisations that issue a lot of certificates</h2>
+          <h2 id="features-h" className="max-w-[22ch] font-display text-[32px] leading-tight">Built for organisations that issue a lot of certificates</h2>
           <dl className="mt-12 grid gap-x-12 gap-y-10 md:grid-cols-2">
             {[
               ['Every box where you want it', 'Drag, resize and snap any element. Add custom fields like roll number or grade and place each one precisely, with undo and keyboard nudging.'],
@@ -222,7 +222,7 @@ export default function Home() {
 
       <section id="example" className="mx-auto grid max-w-6xl scroll-mt-20 items-center gap-12 px-5 py-20 lg:grid-cols-2" aria-labelledby="example-h">
         <div>
-          <h2 id="example-h" className="font-serif text-[40px] leading-tight">What someone sees when they scan</h2>
+          <h2 id="example-h" className="font-display text-[32px] leading-tight">What someone sees when they scan</h2>
           <p className="mt-4 max-w-[52ch] text-[16.5px] leading-relaxed text-ink-2">
             Every certificate has its own permanent page. It answers the questions an employer or admissions office would otherwise email you about.
           </p>
@@ -236,11 +236,11 @@ export default function Home() {
             <VerifySearch className="mt-3 max-w-md" />
           </div>
         </div>
-        <figure className="border border-rule bg-card p-5 shadow-[0_24px_50px_-34px_rgba(25,23,18,0.5)] sm:p-7">
-          <div className="flex items-start gap-3 border border-seal/30 bg-seal-soft p-4">
-            <SealMark size={34} color="#2E6B4F" className="shrink-0" />
+        <figure className="rounded-xl border border-rule bg-card p-5 shadow-[0_24px_50px_-34px_rgba(15,23,42,0.5)] sm:p-7">
+          <div className="flex items-start gap-3 rounded-lg border border-seal/30 bg-seal-soft p-4">
+            <SealMark size={34} className="shrink-0 text-seal" />
             <div>
-              <p className="font-serif text-[26px] leading-tight text-seal">Valid certificate</p>
+              <p className="font-display text-[22px] leading-tight text-seal">Valid certificate</p>
               <p className="text-[13.5px] text-ink-2">Issued on 21 September 2026. The signed record matches.</p>
             </div>
           </div>
@@ -269,15 +269,15 @@ export default function Home() {
       <section className="border-t border-rule" aria-labelledby="uses-h">
         <div className="mx-auto max-w-6xl px-5 py-20">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <h2 id="uses-h" className="font-serif text-[40px] leading-tight">Certificates for every occasion</h2>
-            <Link href="/certificate-maker" className="text-[15px] text-brass underline underline-offset-4 hover:text-brass-dark">
+            <h2 id="uses-h" className="font-display text-[32px] leading-tight">Certificates for every occasion</h2>
+            <Link href="/certificate-maker" className="text-[15px] text-accent underline underline-offset-4 hover:text-accent-dark">
               All use cases
             </Link>
           </div>
           <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {USE_CASES.map((u) => (
               <li key={u.slug} lang={u.slug === 'bangla-certificate' ? 'bn' : undefined}>
-                <Link href={`/certificate-maker/${u.slug}`} className="block h-full border border-rule bg-card p-5 transition-colors hover:border-brass">
+                <Link href={`/certificate-maker/${u.slug}`} className="block h-full rounded-xl border border-rule bg-card p-5 transition-colors hover:border-accent">
                   <span className="block font-medium">{u.short}</span>
                   <span className="mt-1.5 block text-[14px] leading-snug text-muted">{u.description}</span>
                 </Link>
@@ -290,8 +290,8 @@ export default function Home() {
       <section className="border-t border-rule" aria-labelledby="templates-h">
         <div className="mx-auto max-w-6xl px-5 py-20">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <h2 id="templates-h" className="font-serif text-[40px] leading-tight">Start from a template</h2>
-            <Link href="/templates" className="text-[15px] text-brass underline underline-offset-4 hover:text-brass-dark">
+            <h2 id="templates-h" className="font-display text-[32px] leading-tight">Start from a template</h2>
+            <Link href="/templates" className="text-[15px] text-accent underline underline-offset-4 hover:text-accent-dark">
               See all {PRESETS.length} templates
             </Link>
           </div>
@@ -299,7 +299,7 @@ export default function Home() {
             {PRESETS.slice(0, 4).map((p) => (
               <li key={p.slug}>
                 <Link href={`/templates/${p.slug}`} className="group block">
-                  <div className="border border-rule bg-card p-1.5 transition-colors group-hover:border-brass">
+                  <div className="rounded-xl border border-rule bg-card p-1.5 transition-colors group-hover:border-accent">
                     <TemplatePreview framed slug={p.slug} label={`${p.name} template preview`} sizes="(min-width: 1024px) 270px, (min-width: 640px) 50vw, 100vw" />
                   </div>
                   <p className="mt-3 font-medium">{p.name}</p>
@@ -313,8 +313,8 @@ export default function Home() {
 
       <section className="border-y border-rule bg-card" aria-labelledby="price-h">
         <div className="mx-auto max-w-6xl px-5 py-20">
-          <h2 id="price-h" className="font-serif text-[40px] leading-tight">Start free, pay when you issue in volume</h2>
-          <div className="mt-10 grid gap-px overflow-hidden border border-rule bg-rule md:grid-cols-3">
+          <h2 id="price-h" className="font-display text-[32px] leading-tight">Start free, pay when you issue in volume</h2>
+          <div className="mt-10 grid gap-px overflow-hidden rounded-xl border border-rule bg-rule md:grid-cols-3">
             {[
               ['Without an account', `${limits.guestLifetime} certificates`, 'Not registered, so the QR code won’t confirm them. Good for trying the editor.'],
               ['Free account', `${limits.freeMonthly} a month`, 'Verifiable certificates with QR codes, saved templates and a signature library.'],
@@ -322,25 +322,25 @@ export default function Home() {
             ].map(([t, p, d]) => (
               <div key={t} className="bg-card p-7">
                 <h3 className="text-[15px] text-muted">{t}</h3>
-                <p className="mt-2 font-serif text-[36px] leading-none">{p}</p>
+                <p className="mt-2 font-display text-[30px] leading-none">{p}</p>
                 <p className="mt-4 text-[15px] leading-relaxed text-ink-2">{d}</p>
               </div>
             ))}
           </div>
-          <Link href="/pricing" className="mt-6 inline-block text-[15px] text-brass underline underline-offset-4 hover:text-brass-dark">
+          <Link href="/pricing" className="mt-6 inline-block text-[15px] text-accent underline underline-offset-4 hover:text-accent-dark">
             Compare packages
           </Link>
         </div>
       </section>
 
       <section className="mx-auto max-w-3xl px-5 py-20" aria-labelledby="faq-h">
-        <h2 id="faq-h" className="font-serif text-[40px] leading-tight">Questions</h2>
+        <h2 id="faq-h" className="font-display text-[32px] leading-tight">Questions</h2>
         <div className="mt-8 divide-y divide-rule border-y border-rule">
           {faqs.map((f) => (
             <details key={f.q} className="group py-5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[17px] font-medium">
                 {f.q}
-                <span className="text-brass transition-transform group-open:rotate-45" aria-hidden>+</span>
+                <span className="text-accent transition-transform group-open:rotate-45" aria-hidden>+</span>
               </summary>
               <p className="mt-3 max-w-[65ch] text-[15.5px] leading-relaxed text-ink-2">{f.a}</p>
             </details>

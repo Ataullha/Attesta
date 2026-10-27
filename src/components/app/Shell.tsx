@@ -18,7 +18,7 @@ export function Shell({ nav, title, user, children }: { nav: { href: string; lab
 export function PageTitle({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-      <h1 className="font-serif text-[40px] leading-none">{title}</h1>
+      <h1 className="font-display text-[32px] leading-none">{title}</h1>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}
     </div>
   );

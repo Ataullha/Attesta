@@ -26,7 +26,7 @@ export default function UseCasesPage() {
         }}
       />
       <div className="mx-auto max-w-6xl px-5 py-14">
-        <h1 className="font-serif text-[48px] leading-tight">Certificates for every occasion</h1>
+        <h1 className="font-display text-[40px] leading-tight">Certificates for every occasion</h1>
         <p className="mt-3 max-w-[62ch] text-[17px] leading-relaxed text-ink-2">
           Pick what you are issuing to see a template that suits it, the fields it needs, and how organisations issue it to a whole group at once.
         </p>
@@ -34,7 +34,7 @@ export default function UseCasesPage() {
           {USE_CASES.map((u) => (
             <li key={u.slug} lang={u.slug === 'bangla-certificate' ? 'bn' : undefined}>
               <Link href={`/certificate-maker/${u.slug}`} className="group block">
-                <div className="border border-rule bg-card p-1.5 transition-colors group-hover:border-brass">
+                <div className="rounded-xl border border-rule bg-card p-1.5 transition-colors group-hover:border-accent">
                   <TemplatePreview framed slug={u.preset} label={`${u.short}: example certificate`} />
                 </div>
                 <h2 className="mt-3 text-[17px] font-medium">{u.short}</h2>

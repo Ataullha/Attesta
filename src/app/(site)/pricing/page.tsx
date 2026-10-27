@@ -60,15 +60,15 @@ export default function PricingPage() {
     <>
       <JsonLd data={structuredData} />
       <div className="mx-auto max-w-6xl px-5 py-14">
-        <h1 className="font-serif text-[48px] leading-tight">Simple, prepaid pricing</h1>
+        <h1 className="font-display text-[40px] leading-tight">Simple, prepaid pricing</h1>
         <p className="mt-3 max-w-[60ch] text-[17px] leading-relaxed text-ink-2">
           Start free, and buy credits when you issue in volume. There is no subscription: credits never expire, and you pay in taka by {paymentMethodsInWords()}.
         </p>
 
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
-          <section aria-labelledby="guest-h" className="flex flex-col border border-rule bg-card p-7">
+          <section aria-labelledby="guest-h" className="flex flex-col rounded-xl border border-rule bg-card p-7">
             <h2 id="guest-h" className="text-[15px] text-muted">Without an account</h2>
-            <p className="mt-2 font-serif text-[40px] leading-none">Free · {limits.guestLifetime} certificates</p>
+            <p className="mt-2 font-display text-[32px] leading-none">Free · {limits.guestLifetime} certificates</p>
             <ul className="mt-5 flex-1 space-y-2 text-[15px] text-ink-2">
               <li className="flex gap-2"><Tick />Full editor, all templates, your own background</li>
               <li className="flex gap-2"><Tick />Signature, QR code and barcode</li>
@@ -76,9 +76,9 @@ export default function PricingPage() {
             </ul>
             <Link href="/create" className={btn.secondary + ' mt-7 self-start'}>Open the editor</Link>
           </section>
-          <section aria-labelledby="free-h" className="flex flex-col border border-ink bg-card p-7">
+          <section aria-labelledby="free-h" className="flex flex-col rounded-xl border border-accent bg-card p-7 ring-1 ring-accent">
             <h2 id="free-h" className="text-[15px] text-muted">Free account</h2>
-            <p className="mt-2 font-serif text-[40px] leading-none">Free · {limits.freeMonthly} a month</p>
+            <p className="mt-2 font-display text-[32px] leading-none">Free · {limits.freeMonthly} a month</p>
             <ul className="mt-5 flex-1 space-y-2 text-[15px] text-ink-2">
               <li className="flex gap-2"><Tick />Every certificate gets a signed verification record</li>
               <li className="flex gap-2"><Tick />Saved templates and a signature library</li>
@@ -90,7 +90,7 @@ export default function PricingPage() {
         </div>
 
         <section aria-labelledby="packages-h" className="mt-20">
-          <h2 id="packages-h" className="font-serif text-[36px] leading-tight">Packages for bulk issuing</h2>
+          <h2 id="packages-h" className="font-display text-[30px] leading-tight">Packages for bulk issuing</h2>
           <p className="mt-2 max-w-[62ch] text-[15.5px] leading-relaxed text-ink-2">
             Packages add certificate credits and unlock bulk issuing from CSV. The larger the package, the less each certificate costs.
           </p>
@@ -98,17 +98,17 @@ export default function PricingPage() {
             {packages.map((p) => {
               const saving = savingVersusSmallest(p);
               return (
-                <li key={p.id} className="flex flex-col border border-rule bg-card p-7">
+                <li key={p.id} className="flex flex-col rounded-xl border border-rule bg-card p-7">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-[19px] font-semibold">{p.name}</h3>
                     {saving > 0 && <span className="rounded-full bg-seal-soft px-2.5 py-0.5 text-[12.5px] font-medium text-seal">Save {saving}% per certificate</span>}
                   </div>
                   <p className="mt-1 text-[14.5px] text-muted">{p.note}</p>
-                  <p className="mt-6 font-serif text-[44px] leading-none">{formatMoney(p.price)}</p>
+                  <p className="mt-6 font-display text-[36px] leading-none">{formatMoney(p.price)}</p>
                   <p className="mt-2 text-[15px] text-ink-2">
                     {p.credits.toLocaleString()} certificates · <span className="tabular-nums">{formatMoney(perCertificate(p))}</span> each
                   </p>
-                  <Link href={`/app/billing?package=${p.id}`} className={btn.brass + ' mt-7'}>
+                  <Link href={`/app/billing?package=${p.id}`} className={btn.primary + ' mt-7'}>
                     Buy {p.name}
                   </Link>
                 </li>
@@ -135,7 +135,7 @@ export default function PricingPage() {
                   'Credits are added once the payment is confirmed, usually within a few hours.',
                 ].map((step, i) => (
                   <li key={step} className="flex gap-3">
-                    <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-rule-2 font-mono text-[12.5px] text-brass">{i + 1}</span>
+                    <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-rule-2 font-mono text-[12.5px] text-accent">{i + 1}</span>
                     {step}
                   </li>
                 ))}
@@ -145,7 +145,7 @@ export default function PricingPage() {
 
           <p className="mt-10 border-t border-rule pt-6 text-[15px] text-ink-2">
             Issuing more than {largest.credits.toLocaleString()} certificates a year, or need something specific?{' '}
-            <a href={`mailto:${site.supportEmail}?subject=${encodeURIComponent(`${site.name} for our organisation`)}`} className="font-medium text-brass underline underline-offset-2 hover:text-brass-dark">
+            <a href={`mailto:${site.supportEmail}?subject=${encodeURIComponent(`${site.name} for our organisation`)}`} className="font-medium text-accent underline underline-offset-2 hover:text-accent-dark">
               Email us
             </a>
             .
@@ -153,7 +153,7 @@ export default function PricingPage() {
         </section>
 
         <section aria-labelledby="pricing-faq-h" className="mx-auto mt-20 max-w-3xl">
-          <h2 id="pricing-faq-h" className="font-serif text-[36px] leading-tight">Questions about paying</h2>
+          <h2 id="pricing-faq-h" className="font-display text-[30px] leading-tight">Questions about paying</h2>
           <dl className="mt-6 divide-y divide-rule border-y border-rule">
             {faqs.map((f) => (
               <div key={f.q} className="py-5">

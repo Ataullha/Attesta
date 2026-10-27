@@ -13,10 +13,10 @@ export default function ErrorPage({ error, retry }: { error: Error & { digest?: 
 
   return (
     <main id="main" className="mx-auto flex min-h-[60dvh] max-w-xl flex-col justify-center px-5">
-      <h1 className="font-serif text-[44px] leading-tight">This page failed to load</h1>
+      <h1 className="font-display text-[36px] leading-tight">This page failed to load</h1>
       <p className="mt-3 text-[17px] text-ink-2">
         It’s a problem on our side. Try again — if it keeps happening, email{' '}
-        <a href={`mailto:${site.supportEmail}`} className="text-brass underline underline-offset-2">
+        <a href={`mailto:${site.supportEmail}`} className="text-accent underline underline-offset-2">
           {site.supportEmail}
         </a>
         {error.digest ? ' and quote the reference below.' : '.'}

@@ -70,7 +70,7 @@ export function PasswordForm() {
         <input name="confirm" type={type} autoComplete="new-password" required minLength={10} maxLength={200} className={field.input} />
       </label>
       <label className="flex items-center gap-2 text-[14px] text-ink-2">
-        <input type="checkbox" className="h-4 w-4 accent-brass" checked={show} onChange={(e) => setShow(e.target.checked)} />
+        <input type="checkbox" className="h-4 w-4 accent-accent" checked={show} onChange={(e) => setShow(e.target.checked)} />
         Show passwords
       </label>
       <Status msg={msg} />
@@ -78,6 +78,36 @@ export function PasswordForm() {
         {busy ? 'Saving…' : 'Change password'}
       </button>
     </form>
+  );
+}
+
+/** For an account that signs in with Google only: emails a link to choose a password, as "Forgot your password?" does. */
+export function AddPasswordByEmail({ email }: { email: string }) {
+  const [msg, setMsg] = useState<Message>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        className={btn.secondary}
+        disabled={busy || !!msg?.ok}
+        onClick={async () => {
+          setBusy(true);
+          setMsg(null);
+          try {
+            await postJson('/api/auth/forgot', { email });
+            setMsg({ ok: true, text: `We sent a link to ${email}. Open it within an hour to choose your password.` });
+          } catch (err) {
+            setMsg({ ok: false, text: (err as Error).message });
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? 'Sending…' : 'Email me a link to set a password'}
+      </button>
+      <Status msg={msg} />
+    </div>
   );
 }
 

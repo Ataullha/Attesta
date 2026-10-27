@@ -27,7 +27,7 @@ export default async function AdminOrgs() {
             {rows.map(({ o, email }) => (
               <tr key={o.id}>
                 <td className="px-4 py-3 font-medium">{o.name}<span className="block text-[12.5px] font-normal text-muted">since {formatDate(o.createdAt)}</span></td>
-                <td className="px-4 py-3">{o.domain ? <a className="text-brass underline" href={`https://${o.domain}`} target="_blank" rel="noreferrer">{o.domain}</a> : '—'}</td>
+                <td className="px-4 py-3">{o.domain ? <a className="text-accent underline" href={`https://${o.domain}`} target="_blank" rel="noreferrer">{o.domain}</a> : '—'}</td>
                 <td className="px-4 py-3">{email}</td>
                 <td className="px-4 py-3">{o.status}</td>
                 <td className="px-4 py-3">

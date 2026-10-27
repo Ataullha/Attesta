@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/auth/session';
 import { DesignComesWithYou, RegisterForm } from '@/components/site/AuthForms';
+import { GoogleButton } from '@/components/site/GoogleButton';
+import { googleConfigured } from '@/lib/auth/google';
 import { Tick } from '@/components/site/Tick';
 import { safeNextPath } from '@/lib/safe-redirect';
 import { DRAFT_RETURN } from '@/components/editor/draft';
@@ -31,17 +33,18 @@ export default async function RegisterPage({ searchParams }: PageProps<'/registe
     <div className="grid w-full max-w-[420px] gap-12 lg:max-w-5xl lg:grid-cols-[420px_1fr] lg:gap-16">
       <div>
         {next === DRAFT_RETURN && <DesignComesWithYou />}
-        <h1 className="font-serif text-[40px] leading-tight">Create a free account</h1>
+        <h1 className="font-display text-[32px] leading-tight">Create a free account</h1>
         <p className="mb-7 mt-1 text-[15px] text-muted">
           No card needed. Already registered?{' '}
-          <Link href={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="text-brass underline underline-offset-2 hover:text-brass-dark">
+          <Link href={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`} className="text-accent underline underline-offset-2 hover:text-accent-dark">
             Sign in
           </Link>
         </p>
+        {googleConfigured() && <GoogleButton next={next} divider="or sign up with your email" />}
         <RegisterForm next={next} />
       </div>
       <section aria-labelledby="free-h" className="border-t border-rule pt-10 lg:mt-2 lg:border-l lg:border-t-0 lg:pl-16 lg:pt-0">
-        <h2 id="free-h" className="font-serif text-[30px] leading-tight">What the free account includes</h2>
+        <h2 id="free-h" className="font-display text-[24px] leading-tight">What the free account includes</h2>
         <ul className="mt-5 space-y-3 text-[15.5px] leading-snug text-ink-2">
           {benefits.map((b) => (
             <li key={b} className="flex gap-2.5">

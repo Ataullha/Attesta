@@ -1,25 +1,48 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #F7F4EE;
-  --color-card: #FFFDFA;
-  --color-ink: #191712;
-  --color-ink-2: #4A4438;
-  --color-muted: #6B6455;
-  --color-rule: #E3DDD0;
-  --color-rule-2: #D6CEBC;
-  --color-brass: #8A5D28;
-  --color-brass-dark: #6B4720;
-  --color-brass-soft: #F2E8D5;
-  --color-gold: #C8A14B;
-  --color-seal: #2E6B4F;
-  --color-seal-soft: #E4EFE7;
-  --color-revoked: #9E3B2B;
-  --color-revoked-soft: #F6E4E0;
+  /* Slate and white with one blue accent. Every text colour here passes WCAG AA (4.5:1) on paper, on card
+     and, for accent, seal and revoked, on its own -soft background. */
+  --color-paper: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-ink: #0F172A;
+  --color-ink-2: #334155;
+  --color-muted: #64748B;
+  --color-rule: #E2E8F0;
+  --color-rule-2: #CBD5E1;
+  --color-accent: #2563EB;
+  --color-accent-dark: #1D4ED8;
+  --color-accent-soft: #EFF6FF;
+  --color-gold: #F59E0B;
+  --color-seal: #047857;
+  --color-seal-dark: #065F46;
+  --color-seal-soft: #ECFDF5;
+  --color-revoked: #B91C1C;
+  --color-revoked-dark: #991B1B;
+  --color-revoked-soft: #FEF2F2;
+  /* Something to check or wait for: amber, dark enough to read as text. */
+  --color-warn: #B45309;
+  --color-warn-soft: #FFFBEB;
+  /* Behind the certificate in the editor, so a white page stands out from it. */
+  --color-stage: #E2E8F0;
 
-  --font-serif: "Instrument Serif", "Tiro Bangla", "Iowan Old Style", Georgia, serif;
-  --font-sans: "Instrument Sans", "Hind Siliguri", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Headings: the text face, heavier and set tighter. In the base layer, so a weight or tracking
+   utility on the element itself still wins. */
+@layer base {
+  .font-display {
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  /* Tight tracking suits Latin capitals; Bangla conjuncts need their normal spacing. */
+  .font-display:lang(bn) {
+    letter-spacing: normal;
+  }
 }
 
 /* A phone held sideways: wide enough for two columns, too short to stack a stage above its panels. */
@@ -40,23 +63,25 @@ body {
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-brass);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: var(--color-brass-soft);
+  background: #DBEAFE;
 }
 
 .prose-body p { margin-top: 1em; line-height: 1.65; max-width: 68ch; color: var(--color-ink-2); }
-.prose-body h2 { font-family: var(--font-serif); font-size: 30px; line-height: 1.15; margin-top: 1.6em; }
+.prose-body h2 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; font-size: 24px; line-height: 1.2; margin-top: 1.6em; }
 .prose-body h3 { font-weight: 600; font-size: 17px; margin-top: 1.4em; }
 .prose-body ul { margin-top: 0.8em; padding-left: 1.2em; list-style: disc; color: var(--color-ink-2); max-width: 68ch; }
 .prose-body li { margin-top: 0.4em; line-height: 1.6; }
-.prose-body a { color: var(--color-brass); text-decoration: underline; text-underline-offset: 2px; }
+.prose-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

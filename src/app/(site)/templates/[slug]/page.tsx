@@ -44,18 +44,18 @@ export default async function TemplatePage({ params }: PageProps<'/templates/[sl
           <Link href="/templates" className="hover:text-ink">Templates</Link> <span aria-hidden>/</span> {p.name}
         </nav>
         <div className="mt-6 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
-          <div className="border border-rule-2 bg-card p-2">
+          <div className="rounded-xl border border-rule-2 bg-card p-2">
             <TemplatePreview slug={p.slug} label={`${p.name} certificate template, full preview`} sizes="(min-width: 1024px) 640px, 100vw" priority />
           </div>
           <div>
-            <h1 className="font-serif text-[46px] leading-[1.05]">{p.name}</h1>
+            <h1 className="font-display text-[38px] leading-[1.05]">{p.name}</h1>
             <p className="mt-4 text-[17px] leading-relaxed text-ink-2">{p.description}</p>
             <h2 className="mt-8 text-[15px] font-semibold">Fields on this template</h2>
             <ul className="mt-2 space-y-1.5 text-[15px] text-ink-2">
               {p.design.fields.map((f) => (
                 <li key={f.key} className="flex justify-between gap-4 border-b border-rule pb-1.5">
                   <span>{f.label}</span>
-                  <code className="font-mono text-[12.5px] text-brass">{`{{${f.key}}}`}</code>
+                  <code className="font-mono text-[12.5px] text-accent">{`{{${f.key}}}`}</code>
                 </li>
               ))}
             </ul>

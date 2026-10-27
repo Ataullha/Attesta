@@ -11,7 +11,7 @@ export function CtaBand({ title = 'Issue your first verifiable certificate today
     <section aria-labelledby="cta-h" className="border-t border-rule bg-card">
       <div className="mx-auto flex max-w-6xl flex-col gap-7 px-5 py-16 md:flex-row md:items-center md:justify-between">
         <div className="max-w-[46ch]">
-          <h2 id="cta-h" className="font-serif text-[34px] leading-tight sm:text-[40px]">
+          <h2 id="cta-h" className="font-display text-[28px] leading-tight sm:text-[32px]">
             {title}
           </h2>
           <p className="mt-2 text-[16px] leading-relaxed text-ink-2">

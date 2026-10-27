@@ -30,7 +30,7 @@ export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy,
   return (
     <div className="text-[14px]">
       <div className="border-b border-rule px-4 py-3">
-        <h2 className="font-serif text-[22px] leading-tight">Issue one certificate</h2>
+        <h2 className="font-display text-[18px] leading-tight">Issue one certificate</h2>
         <p className="mt-1 text-[12.5px] leading-snug text-muted">Fill in the details. The preview updates as you type.</p>
       </div>
       <form
@@ -59,7 +59,7 @@ export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy,
         ))}
 
         {signedIn && (
-          <fieldset className="space-y-2.5 rounded-[4px] border border-rule bg-paper/60 p-3">
+          <fieldset className="space-y-2.5 rounded-lg border border-rule bg-paper/60 p-3">
             <legend className="px-1 text-[12.5px] text-ink-2">Verification page</legend>
             <label className="block">
               <span className="mb-1 block text-[12px] text-muted">Show the recipient’s name as</span>
@@ -70,25 +70,25 @@ export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy,
               </select>
             </label>
             <label className="flex items-start gap-2 text-[12.5px] leading-snug">
-              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brass" checked={design.settings.indexable} onChange={(e) => onSettings({ indexable: e.target.checked })} />
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-accent" checked={design.settings.indexable} onChange={(e) => onSettings({ indexable: e.target.checked })} />
               Let search engines list the verification page
             </label>
           </fieldset>
         )}
 
-        <button type="submit" className={btn.brass + ' w-full'} disabled={busy}>
+        <button type="submit" className={btn.primary + ' w-full'} disabled={busy}>
           {busy ? progress ?? 'Working…' : 'Issue and download PDF'}
         </button>
         <p className="text-[12.5px] leading-snug text-muted">{quotaNote}</p>
         {signedIn && templateId && (
-          <Link href={`/app/bulk?template=${templateId}`} className="block text-[13px] text-brass underline-offset-2 hover:underline">
+          <Link href={`/app/bulk?template=${templateId}`} className="block text-[13px] text-accent underline-offset-2 hover:underline">
             Issue many from a CSV file instead
           </Link>
         )}
       </form>
 
       {error && (
-        <div role="alert" className="mx-4 mb-4 rounded-[4px] border border-revoked/30 bg-revoked-soft p-3 text-[13px] leading-snug text-revoked">
+        <div role="alert" className="mx-4 mb-4 rounded-lg border border-revoked/30 bg-revoked-soft p-3 text-[13px] leading-snug text-revoked">
           {error.message}
           {error.code === 'guest_limit' && (
             <button type="button" onClick={() => onAccount('/register')} className="mt-2 block text-left font-medium underline">
@@ -109,21 +109,21 @@ export function IssuePanel({ design, values, onValue, onSettings, onIssue, busy,
       )}
 
       {result && (
-        <div className="mx-4 mb-6 rounded-[4px] border border-seal/30 bg-seal-soft p-3.5" aria-live="polite">
+        <div className="mx-4 mb-6 rounded-lg border border-seal/30 bg-seal-soft p-3.5" aria-live="polite">
           <p className="text-[13.5px] font-medium text-seal">{result.guest ? 'Downloaded (guest copy)' : 'Issued and downloaded'}</p>
           <p className="mt-1 font-mono text-[12.5px] tracking-wide text-ink">{result.serial}</p>
           {result.guest ? (
             <p className="mt-2 text-[12.5px] leading-snug text-ink-2">
               Guest certificates carry a footer note and are not registered, so the QR code won’t confirm them.
               {typeof result.remaining === 'number' && ` ${result.remaining} guest certificate${result.remaining === 1 ? '' : 's'} left.`}{' '}
-              <button type="button" onClick={() => onAccount('/register')} className="font-medium text-brass underline">
+              <button type="button" onClick={() => onAccount('/register')} className="font-medium text-accent underline">
                 Sign up free
               </button>{' '}
               for verifiable certificates; this design comes with you.
             </p>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
-              <a href={result.verifyUrl} target="_blank" rel="noreferrer" className={btn.small + ' bg-seal text-card hover:bg-[#24553F]'}>
+              <a href={result.verifyUrl} target="_blank" rel="noreferrer" className={btn.small + ' bg-seal text-card hover:bg-seal-dark'}>
                 Open verification page
               </a>
               <button type="button" className={btn.small + ' border border-seal/40 text-seal hover:bg-card'} onClick={() => copy(result.verifyUrl)}>

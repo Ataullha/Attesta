@@ -50,6 +50,7 @@ It prints four lines. In Vercel → **Settings → Environment Variables**, add 
 | `APP_URL` | `https://your-domain.com` (or `https://your-project.vercel.app` for now) |
 | `CRON_SECRET` | any long random text |
 | `RESEND_API_KEY`, `EMAIL_FROM` | optional, see “Email” below |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional, see “Sign in with Google” below |
 
 > **Keep `SIGNING_PRIVATE_KEY` secret and backed up.** If it is lost, new certificates can still be issued with a new key,
 > but if the *public* key is lost, older certificates can no longer show “signature confirmed”.
@@ -98,6 +99,26 @@ Vercel → **Settings → Domains** → add it and follow the DNS instructions. 
 Without email configured, new accounts are active immediately and reset links only appear in the Vercel function logs.
 For production, create a free account at resend.com, verify your domain, and set `RESEND_API_KEY` and `EMAIL_FROM`.
 Accounts then need to confirm their email before issuing, which stops throwaway sign-ups from farming free certificates.
+
+## Sign in with Google
+Optional. With `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` set, the sign-in and sign-up pages offer **Continue with Google**;
+without them the button does not appear.
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), open **Google Auth platform**. Give the app its name and a
+   support email, and publish it: while it is in testing, only the test users listed there can sign in.
+2. Under **Clients**, choose **Create client**, application type **Web application**. Under **Authorized redirect URIs** add your
+   `APP_URL` followed by `/api/auth/google/callback`, for example `https://your-domain.com/api/auth/google/callback`. It must match
+   exactly, or Google refuses with `redirect_uri_mismatch`. For local development add `http://localhost:3000/api/auth/google/callback` too.
+3. Put the client ID and client secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and redeploy.
+
+The app asks Google only for the person's name and email address (`openid email profile`).
+- Someone new gets an account straight away, with the address already confirmed and no password. **Account settings** can email
+  them a link to add a password.
+- Someone who already has an account with the same address is signed in to it, and it is linked to their Google account from then on.
+  If that address was never confirmed, the account's password is removed and its other sessions are ended: whoever chose that password
+  never proved they own the address.
+- When a sign-in fails, the sign-in page says why. Problems with the setup, such as a wrong secret or a redirect address Google does
+  not know, also appear in the function logs as `Google sign-in failed: …`.
 
 ## Ads (AdSense)
 Set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-XXXXXXXX` and redeploy. Ads show on the certificate-type pages
@@ -151,6 +172,8 @@ Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi.
 - Email-confirmation and password-reset links are single-use and spent atomically, so one link cannot be replayed by parallel requests.
   Resetting or changing a password signs out every other device, and **Account settings** can do that on demand.
 - CSRF: every state-changing request must come from the site’s own origin.
+- Google sign-in: the authorisation code flow with PKCE, a state value and a nonce, kept in a signed cookie that lasts ten minutes and
+  is used once. The ID token's issuer, audience, expiry, nonce and confirmed address are checked before anyone is signed in.
 - Rate limits (stored in Postgres): login, register, password reset, issuing, uploads, reports.
 - Quotas are enforced in a database transaction with a row lock, so parallel requests can’t exceed them.
 - Uploads: content-sniffed (PNG/JPEG/WebP only), re-encoded with sharp to strip metadata, 4 MB limit. Signatures are private to their owner.
@@ -202,11 +225,11 @@ export TEST_DATABASE_URL=postgres://user:password@127.0.0.1:5432/attesta_test
 
 npm test               # unit tests, and tests against the real database (skipped without TEST_DATABASE_URL)
 npm run build
-npm run test:e2e       # starts the built app, with a stand-in mail server, and drives it over HTTP
+npm run test:e2e       # starts the built app, with stand-ins for the mail provider and Google, and drives it over HTTP
 ```
 
 `npm test` covers the signing and serial rules, design and CSV handling, password hashing, image re-encoding, redirects,
-one-time links, rate limits and the CSV export. `npm run test:e2e` covers what a person does: sign up, confirm by email, issue,
+one-time links, rate limits and the CSV export. `npm run test:e2e` covers what a person does: sign up (with a password or with Google), confirm by email, issue,
 verify, revoke, reset a password, export, the admin screens, and what search engines are told. It refuses to run if the build is
 older than the source. GitHub Actions runs the type check, both suites and the build on every pull request and every push to `main`
 (`.github/workflows/ci.yml`).

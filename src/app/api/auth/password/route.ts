@@ -23,7 +23,10 @@ export const POST = route(async (req) => {
   if (currentPassword === newPassword) throw new HttpError(400, 'Choose a new password that is different from the current one.');
 
   const [row] = await db().select({ hash: schema.users.passwordHash }).from(schema.users).where(eq(schema.users.id, user.id)).limit(1);
-  if (!row || !(await verifyPassword(currentPassword, row.hash))) throw new HttpError(403, 'Your current password is not right.', 'wrong_password');
+  if (row && !row.hash) {
+    throw new HttpError(400, 'This account signs in with Google and has no password yet. To add one, use “Forgot your password?” on the sign-in page.', 'no_password');
+  }
+  if (!row?.hash || !(await verifyPassword(currentPassword, row.hash))) throw new HttpError(403, 'Your current password is not right.', 'wrong_password');
 
   await db()
     .update(schema.users)

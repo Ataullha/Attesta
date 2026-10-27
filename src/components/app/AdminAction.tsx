@@ -11,7 +11,7 @@ export function AdminAction({ url, body, label, tone = 'neutral', confirmText, a
   const router = useRouter();
   const dialogs = useDialogs();
   const [busy, setBusy] = useState(false);
-  const cls = tone === 'good' ? 'bg-seal text-card hover:bg-[#24553F]' : tone === 'bad' ? 'text-revoked hover:bg-revoked-soft' : 'border border-rule-2 hover:bg-paper';
+  const cls = tone === 'good' ? 'bg-seal text-card hover:bg-seal-dark' : tone === 'bad' ? 'text-revoked hover:bg-revoked-soft' : 'border border-rule-2 hover:bg-paper';
   return (
     <button type="button" className={`${btn.small} ${cls}`} disabled={busy} onClick={async () => {
       if (confirmText && !(await dialogs.confirm({ title: label, message: confirmText, confirmLabel: label, tone: tone === 'bad' ? 'danger' : 'neutral' }))) return;
@@ -61,7 +61,7 @@ export function CreditsForm({ userId }: { userId: string }) {
     }}>
       <label className="sr-only" htmlFor={`cr-${userId}`}>Credits to add or remove</label>
       {/* No numeric keypad: phone keypads for numbers have no minus sign, and removing credits needs one. */}
-      <input id={`cr-${userId}`} value={amount} onChange={(e) => setAmount(e.target.value)} autoComplete="off" placeholder="±credits" className="min-h-9 w-24 rounded-[4px] border border-rule-2 bg-card px-2 text-[13.5px]" />
+      <input id={`cr-${userId}`} value={amount} onChange={(e) => setAmount(e.target.value)} autoComplete="off" placeholder="±credits" className="min-h-9 w-24 rounded-lg border border-rule-2 bg-card px-2 text-[13.5px]" />
       <button className={`${btn.small} border border-rule-2 hover:bg-paper`} disabled={busy}>Apply</button>
     </form>
   );

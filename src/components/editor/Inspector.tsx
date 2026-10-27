@@ -46,7 +46,7 @@ function Color({ label, value, onChange }: { label: string; value: string; onCha
       <span className="text-[13px] text-ink-2">{label}</span>
       <span className="flex items-center gap-2">
         <span className="font-mono text-[12px] text-muted">{value.toUpperCase()}</span>
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-11 cursor-pointer rounded-[4px] border border-rule-2 bg-card p-1" />
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-11 cursor-pointer rounded-lg border border-rule-2 bg-card p-1" />
       </span>
     </label>
   );
@@ -55,7 +55,7 @@ function Color({ label, value, onChange }: { label: string; value: string; onCha
 function Toggle({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) {
   return (
     <label className="flex cursor-pointer items-start gap-2.5">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] accent-brass" />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] accent-accent" />
       <span>
         <span className="block text-[13.5px] text-ink">{label}</span>
         {hint && <span className="block text-[12px] leading-snug text-muted">{hint}</span>}
@@ -90,7 +90,7 @@ export function Inspector({ el, design, live, commit, set, onAction, onUpload, u
   return (
     <div className="text-[14px]">
       <div className="flex items-center justify-between border-b border-rule px-4 py-3">
-        <h2 className="font-serif text-[22px] leading-none">{ELEMENT_LABELS[el.type]}</h2>
+        <h2 className="font-display text-[18px] leading-none">{ELEMENT_LABELS[el.type]}</h2>
         <button type="button" className={btn.small + ' text-muted hover:bg-rule/60'} onClick={() => onAction('lock')}>
           {el.locked ? 'Unlock' : 'Lock'}
         </button>
@@ -112,11 +112,11 @@ export function Inspector({ el, design, live, commit, set, onAction, onUpload, u
             <p className="mb-1.5 text-[12px] text-muted">Insert a field — it will be replaced for each recipient</p>
             <div className="flex flex-wrap gap-1.5">
               {design.fields.map((f) => (
-                <button key={f.key} type="button" onClick={() => insertAtCursor(`{{${f.key}}}`)} className="min-h-8 rounded-[3px] border border-rule-2 bg-card px-2 font-mono text-[11.5px] text-brass hover:border-brass">
+                <button key={f.key} type="button" onClick={() => insertAtCursor(`{{${f.key}}}`)} className="min-h-8 rounded-md border border-rule-2 bg-card px-2 font-mono text-[11.5px] text-accent hover:border-accent">
                   {f.label}
                 </button>
               ))}
-              <button type="button" onClick={() => insertAtCursor('{{serial}}')} className="min-h-8 rounded-[3px] border border-rule-2 bg-card px-2 font-mono text-[11.5px] text-seal hover:border-seal">
+              <button type="button" onClick={() => insertAtCursor('{{serial}}')} className="min-h-8 rounded-md border border-rule-2 bg-card px-2 font-mono text-[11.5px] text-seal hover:border-seal">
                 Serial number
               </button>
             </div>
@@ -148,9 +148,9 @@ export function Inspector({ el, design, live, commit, set, onAction, onUpload, u
           <div className="grid grid-cols-2 gap-2">
             <div>
               <span className="mb-1 block text-[12px] text-muted">Align</span>
-              <div className="flex overflow-hidden rounded-[4px] border border-rule-2">
+              <div className="flex overflow-hidden rounded-lg border border-rule-2">
                 {(['left', 'center', 'right'] as const).map((a) => (
-                  <button key={a} type="button" aria-pressed={el.align === a} onClick={() => set({ align: a } as Partial<DesignElement>)} className={`min-h-9 flex-1 text-[12.5px] capitalize ${el.align === a ? 'bg-ink text-card' : 'bg-card text-ink-2 hover:bg-paper'}`}>
+                  <button key={a} type="button" aria-pressed={el.align === a} onClick={() => set({ align: a } as Partial<DesignElement>)} className={`min-h-9 flex-1 text-[12.5px] capitalize ${el.align === a ? 'bg-accent text-white' : 'bg-card text-ink-2 hover:bg-paper'}`}>
                     {a}
                   </button>
                 ))}
@@ -158,9 +158,9 @@ export function Inspector({ el, design, live, commit, set, onAction, onUpload, u
             </div>
             <div>
               <span className="mb-1 block text-[12px] text-muted">Vertical</span>
-              <div className="flex overflow-hidden rounded-[4px] border border-rule-2">
+              <div className="flex overflow-hidden rounded-lg border border-rule-2">
                 {(['top', 'middle', 'bottom'] as const).map((a) => (
-                  <button key={a} type="button" aria-pressed={el.valign === a} onClick={() => set({ valign: a } as Partial<DesignElement>)} className={`min-h-9 flex-1 text-[12.5px] capitalize ${el.valign === a ? 'bg-ink text-card' : 'bg-card text-ink-2 hover:bg-paper'}`}>
+                  <button key={a} type="button" aria-pressed={el.valign === a} onClick={() => set({ valign: a } as Partial<DesignElement>)} className={`min-h-9 flex-1 text-[12.5px] capitalize ${el.valign === a ? 'bg-accent text-white' : 'bg-card text-ink-2 hover:bg-paper'}`}>
                     {a}
                   </button>
                 ))}
@@ -210,7 +210,7 @@ export function Inspector({ el, design, live, commit, set, onAction, onUpload, u
           </label>
           <label className="block">
             <span className="mb-1 block text-[12px] text-muted">Opacity {Math.round(el.opacity * 100)}%</span>
-            <input type="range" min={0} max={1} step={0.05} value={el.opacity} onChange={(e) => live({ opacity: Number(e.target.value) } as Partial<DesignElement>)} onPointerUp={commit} className="w-full accent-brass" />
+            <input type="range" min={0} max={1} step={0.05} value={el.opacity} onChange={(e) => live({ opacity: Number(e.target.value) } as Partial<DesignElement>)} onPointerUp={commit} className="w-full accent-accent" />
           </label>
           {(el.assetId || el.localId) && (
             <button type="button" className={btn.small + ' text-revoked hover:bg-revoked-soft'} onClick={() => set({ assetId: null, localId: null } as Partial<DesignElement>)}>

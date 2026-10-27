@@ -7,8 +7,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-dvh flex-col">
       <header className="mx-auto flex w-full max-w-6xl items-center px-5 py-5">
         <Link href="/" className="flex items-center gap-2">
-          <SealMark size={26} color="#8A5D28" />
-          <span className="font-serif text-[26px] leading-none">{site.name}</span>
+          <SealMark size={26} className="text-accent" />
+          <span className="font-display text-[22px] leading-none">{site.name}</span>
         </Link>
       </header>
       {/* Each page sets its own width: most are one narrow column, sign-up has a second one beside it. */}

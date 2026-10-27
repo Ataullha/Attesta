@@ -23,7 +23,7 @@ export default async function BulkPage({ searchParams }: PageProps<'/app/bulk'>)
       <PageTitle title="Bulk from CSV" />
       {user.credits <= 0 ? (
         <section aria-labelledby="bulk-h" className={`${card} max-w-3xl p-6 sm:p-8`}>
-          <h2 id="bulk-h" className="font-serif text-[30px] leading-tight">Issue to a whole group at once</h2>
+          <h2 id="bulk-h" className="font-display text-[24px] leading-tight">Issue to a whole group at once</h2>
           <p className="mt-2 max-w-[62ch] text-[15.5px] leading-relaxed text-ink-2">
             Bulk issuing comes with a package. Upload a spreadsheet with one row per person, and every certificate gets its own serial, QR code and
             verification page.
@@ -35,7 +35,7 @@ export default async function BulkPage({ searchParams }: PageProps<'/app/bulk'>)
               'Download one PDF, or a ZIP with a file per person.',
             ].map((step, i) => (
               <li key={step} className="flex gap-3">
-                <span aria-hidden="true" className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-rule-2 font-mono text-[12px] text-brass">{i + 1}</span>
+                <span aria-hidden="true" className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-rule-2 font-mono text-[12px] text-accent">{i + 1}</span>
                 {step}
               </li>
             ))}
@@ -44,9 +44,9 @@ export default async function BulkPage({ searchParams }: PageProps<'/app/bulk'>)
           <ul className="mt-3 grid gap-3 sm:grid-cols-3">
             {packages.map((p) => (
               <li key={p.id}>
-                <Link href={`/app/billing?package=${p.id}`} className="block h-full rounded-md border border-rule-2 p-4 transition-colors hover:border-brass">
+                <Link href={`/app/billing?package=${p.id}`} className="block h-full rounded-xl border border-rule-2 p-4 transition-colors hover:border-accent">
                   <span className="block text-[13.5px] text-muted">{p.name}</span>
-                  <span className="block font-serif text-[24px] leading-tight">{p.credits.toLocaleString()} certificates</span>
+                  <span className="block font-display text-[20px] leading-tight">{p.credits.toLocaleString()} certificates</span>
                   <span className="mt-1 block text-[14.5px]">
                     {formatMoney(p.price)} <span className="text-muted">· {formatMoney(perCertificate(p))} each</span>
                   </span>

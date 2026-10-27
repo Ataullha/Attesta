@@ -9,7 +9,7 @@ import { btn } from '@/components/ui/styles';
  */
 export function ShareCertificate({ url, linkedInAddUrl }: { url: string; linkedInAddUrl: string }) {
   const [copied, copy] = useCopy();
-  const cls = btn.small + ' border border-rule-2 bg-card hover:border-brass';
+  const cls = btn.small + ' border border-rule-2 bg-card hover:border-accent';
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       <button type="button" className={cls} onClick={() => copy(url)}>

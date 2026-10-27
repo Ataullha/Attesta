@@ -10,8 +10,8 @@ export function SiteHeader() {
     <header className="z-40 border-b border-rule bg-paper/95 backdrop-blur-sm md:sticky md:top-0">
       <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
         <Link href="/" className="flex items-center gap-2 text-ink">
-          <SealMark size={26} color="#8A5D28" />
-          <span className="font-serif text-[26px] leading-none">{site.name}</span>
+          <SealMark size={26} className="text-accent" />
+          <span className="font-display text-[22px] leading-none">{site.name}</span>
         </Link>
         <NavLinks />
         <div className="ml-auto flex items-center gap-2">

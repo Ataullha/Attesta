@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { createSession } from '@/lib/auth/session';
+import { googleConfigured } from '@/lib/auth/google';
 import { DUMMY_PASSWORD_HASH, hashIp, verifyPassword } from '@/lib/security/crypto';
 import { clientIp, HttpError, json, readJson, route } from '@/lib/security/request';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -18,7 +19,11 @@ export const POST = route(async (req) => {
 
   const [user] = await db().select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
   const ok = await verifyPassword(parsed.data.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
-  if (!user || !ok) throw new HttpError(401, 'That email and password do not match an account.');
+  // One answer for an unknown address, a wrong password and an account with no password (it signs in with
+  // Google), so the answer says nothing about which addresses have accounts.
+  if (!user || !ok) {
+    throw new HttpError(401, `That email and password do not match an account.${googleConfigured() ? ' If you signed up with Google, use “Continue with Google”.' : ''}`);
+  }
   if (user.bannedAt) throw new HttpError(403, 'This account has been suspended. Contact support if you think this is a mistake.');
   await createSession(user.id);
   return json({ ok: true, role: user.role });
