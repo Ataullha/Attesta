@@ -1,4 +1,4 @@
-import type { Design, DesignElement, Field, TextEl } from './design';
+import { PAGE_SIZES, type Design, type DesignElement, type Field, type TextEl } from './design';
 
 type TextOpts = Partial<Omit<TextEl, 'type' | 'id'>> & Pick<TextEl, 'x' | 'y' | 'w' | 'h' | 'content'>;
 
@@ -43,6 +43,9 @@ const line = (x: number, y: number, w: number, color: string, thickness = 1): De
 const seal = (x: number, y: number, size: number, color: string): DesignElement => ({ id: id('s'), type: 'seal', x, y, w: size, h: size, color });
 const qr = (x: number, y: number, size: number, color = '#191712', background: string | null = '#FFFFFF'): DesignElement => ({ id: id('q'), type: 'qr', x, y, w: size, h: size, color, background });
 const barcode = (x: number, y: number, w: number, h: number, color = '#191712'): DesignElement => ({ id: id('b'), type: 'barcode', x, y, w, h, color, showText: false });
+const photo = (x: number, y: number, w: number, h: number, o: Partial<{ radius: number; stroke: string | null; strokeWidth: number }> = {}): DesignElement => ({
+  id: id('p'), type: 'photo', field: 'photo', x, y, w, h, radius: 0, stroke: null, strokeWidth: 1, name: 'Photo', ...o,
+});
 const signature = (x: number, y: number, w: number, h: number): DesignElement => ({
   id: id('i'), type: 'image', role: 'signature', assetId: null, localId: null, x, y, w, h, fit: 'contain', opacity: 1, name: 'Signature',
 });
@@ -71,7 +74,7 @@ function signatureBlock(cx: number, y: number, ink: string, muted: string, lineC
 export type Preset = {
   slug: string;
   name: string;
-  category: 'completion' | 'excellence' | 'internship' | 'participation' | 'training' | 'competition' | 'appreciation' | 'bangla';
+  category: 'completion' | 'excellence' | 'internship' | 'participation' | 'training' | 'competition' | 'appreciation' | 'bangla' | 'id-card';
   description: string;
   design: Design;
 };
@@ -273,6 +276,165 @@ function banglaSanad(): Design {
   };
 }
 
+/* ---------------- ID cards (85.6 × 54 mm) ---------------- */
+
+const cardSettings = { nameDisplay: 'full', indexable: false } as const;
+
+function card(orientation: 'landscape' | 'portrait', bg: string): Pick<Design, 'kind' | 'page'> {
+  const { width, height } = PAGE_SIZES[`card-${orientation}`];
+  return { kind: 'id-card', page: { width, height, background: { color: bg, assetId: null, localId: null, fit: 'cover' } } };
+}
+
+const photoField = (label = 'Photo'): Field => ({ key: 'photo', label, type: 'photo', required: false, public: false, sample: '' });
+const validUntil = (sample = '31 December 2027', label = 'Valid until'): Field => ({ key: 'valid_until', label, type: 'expiry', required: false, public: true, sample });
+
+/** A small caption over a detail on a card, and the detail itself beneath it. */
+function detail(x: number, y: number, w: number, label: string, content: string, ink: string, muted: string, align: 'left' | 'right' | 'center' = 'left', font: TextEl['font'] = 'instrument-sans') {
+  return [
+    text({ x, y, w, h: 9, content: label, size: 5.5, color: muted, align, uppercase: font === 'instrument-sans', letterSpacing: font === 'instrument-sans' ? 0.6 : 0, font }),
+    text({ x, y: y + 9, w, h: 13, content, size: 8.5, weight: 700, color: ink, align, shrink: true, font }),
+  ];
+}
+
+function clubMember(): Design {
+  const navy = '#1E3A8A';
+  return {
+    version: 1,
+    ...card('portrait', '#FFFFFF'),
+    fields: [
+      { key: 'recipient_name', label: 'Name', type: 'text', required: true, public: true, sample: 'Nusrat Jahan' },
+      { key: 'role', label: 'Role', type: 'text', required: false, public: true, sample: 'General member' },
+      { key: 'member_id', label: 'Member ID', type: 'text', required: false, public: true, sample: 'DSC-2026-014' },
+      photoField(),
+      validUntil(),
+    ],
+    settings: cardSettings,
+    elements: [
+      rect(0, 0, 204, 96, { fill: navy }),
+      text({ x: 12, y: 14, w: 180, h: 14, content: 'Your club name', size: 9, weight: 700, uppercase: true, letterSpacing: 1.4, color: '#FFFFFF', shrink: true }),
+      text({ x: 12, y: 29, w: 180, h: 11, content: 'Member card', size: 6.5, uppercase: true, letterSpacing: 2, color: '#BFDBFE' }),
+      photo(59, 50, 86, 86, { radius: 43, stroke: '#FFFFFF', strokeWidth: 3 }),
+      text({ x: 12, y: 144, w: 180, h: 22, content: '{{recipient_name}}', size: 14.5, weight: 700, color: '#0F172A', shrink: true, name: 'Name' }),
+      text({ x: 12, y: 166, w: 180, h: 14, content: '{{role}}', size: 8, uppercase: true, letterSpacing: 1.2, color: '#1D4ED8', shrink: true }),
+      line(40, 190, 124, '#E2E8F0', 0.75),
+      ...detail(16, 198, 84, 'Member ID', '{{member_id}}', '#0F172A', '#64748B'),
+      ...detail(104, 198, 84, 'Valid until', '{{valid_until}}', '#0F172A', '#64748B', 'right'),
+      qr(75, 232, 54),
+      text({ x: 12, y: 288, w: 180, h: 10, content: '{{serial}}', font: 'jetbrains-mono', size: 5.5, color: '#64748B', letterSpacing: 0.4 }),
+      rect(0, 309.5, 204, 14, { fill: navy }),
+    ],
+  };
+}
+
+function staffId(): Design {
+  const green = '#047857';
+  return {
+    version: 1,
+    ...card('landscape', '#FFFFFF'),
+    fields: [
+      { key: 'recipient_name', label: 'Name', type: 'text', required: true, public: true, sample: 'Tanvir Ahmed' },
+      { key: 'designation', label: 'Designation', type: 'text', required: false, public: true, sample: 'Senior Accountant' },
+      { key: 'department', label: 'Department', type: 'text', required: false, public: true, sample: 'Finance' },
+      { key: 'employee_id', label: 'Employee ID', type: 'text', required: false, public: true, sample: 'EMP-00417' },
+      photoField(),
+      validUntil(),
+    ],
+    settings: cardSettings,
+    elements: [
+      rect(0, 0, 8, 204, { fill: green }),
+      text({ x: 20, y: 13, w: 220, h: 15, content: 'Your company name', size: 9.5, weight: 700, uppercase: true, letterSpacing: 1, color: '#0F172A', align: 'left', shrink: true }),
+      text({ x: 20, y: 28, w: 220, h: 11, content: 'Staff identity card', size: 6.5, uppercase: true, letterSpacing: 1.6, color: green, align: 'left' }),
+      photo(20, 50, 74, 92, { radius: 4, stroke: '#CBD5E1', strokeWidth: 0.75 }),
+      text({ x: 106, y: 50, w: 140, h: 20, content: '{{recipient_name}}', size: 13, weight: 700, color: '#0F172A', align: 'left', shrink: true, name: 'Name' }),
+      text({ x: 106, y: 70, w: 140, h: 13, content: '{{designation}}', size: 8, color: green, align: 'left', shrink: true }),
+      ...detail(106, 92, 140, 'Department', '{{department}}', '#0F172A', '#64748B'),
+      ...detail(106, 118, 140, 'Employee ID', '{{employee_id}}', '#0F172A', '#64748B'),
+      ...detail(20, 150, 120, 'Valid until', '{{valid_until}}', '#0F172A', '#64748B'),
+      qr(255, 104, 56),
+      text({ x: 190, y: 162, w: 121, h: 9, content: '{{serial}}', font: 'jetbrains-mono', size: 5, color: '#64748B', align: 'right', letterSpacing: 0.3 }),
+      rect(8, 190, 315.5, 14, { fill: green }),
+      text({ x: 20, y: 191, w: 290, h: 12, content: 'Scan the code to check this card', size: 5.5, color: '#D1FAE5', align: 'right', letterSpacing: 0.4 }),
+    ],
+  };
+}
+
+function studentId(): Design {
+  const maroon = '#7F1D1D';
+  return {
+    version: 1,
+    ...card('portrait', '#FFFFFF'),
+    fields: [
+      { key: 'recipient_name', label: 'Name', type: 'text', required: true, public: true, sample: 'Farhan Kabir' },
+      { key: 'class', label: 'Class or programme', type: 'text', required: false, public: true, sample: 'BBA, second year' },
+      { key: 'roll', label: 'Roll', type: 'text', required: false, public: true, sample: '2026-117' },
+      { key: 'blood_group', label: 'Blood group', type: 'text', required: false, public: false, sample: 'B+' },
+      photoField(),
+      validUntil('30 June 2027'),
+    ],
+    settings: cardSettings,
+    elements: [
+      rect(0, 0, 204, 56, { fill: maroon }),
+      text({ x: 12, y: 11, w: 180, h: 16, content: 'Your school or university', size: 9, weight: 700, uppercase: true, letterSpacing: 0.8, color: '#FFFFFF', shrink: true }),
+      text({ x: 12, y: 29, w: 180, h: 11, content: 'Student identity card', size: 6.5, uppercase: true, letterSpacing: 1.6, color: '#FECACA' }),
+      photo(62, 66, 80, 100, { radius: 5, stroke: maroon, strokeWidth: 1.25 }),
+      text({ x: 12, y: 172, w: 180, h: 20, content: '{{recipient_name}}', size: 13, weight: 700, color: '#0F172A', shrink: true, name: 'Name' }),
+      ...detail(16, 196, 84, 'Class', '{{class}}', '#0F172A', '#64748B'),
+      ...detail(104, 196, 84, 'Roll', '{{roll}}', '#0F172A', '#64748B', 'right'),
+      ...detail(16, 222, 84, 'Blood group', '{{blood_group}}', maroon, '#64748B'),
+      ...detail(104, 222, 84, 'Valid until', '{{valid_until}}', '#0F172A', '#64748B', 'right'),
+      qr(79, 252, 46),
+      text({ x: 12, y: 300, w: 180, h: 10, content: '{{serial}}', font: 'jetbrains-mono', size: 5.5, color: '#64748B', letterSpacing: 0.4 }),
+      rect(0, 314.5, 204, 9, { fill: maroon }),
+    ],
+  };
+}
+
+function banglaMember(): Design {
+  const green = '#047857';
+  const bn = { font: 'hind-siliguri' as const };
+  return {
+    version: 1,
+    ...card('landscape', '#FFFDF7'),
+    fields: [
+      { key: 'recipient_name', label: 'নাম', type: 'text', required: true, public: true, sample: 'নুসরাত জাহান মিম' },
+      { key: 'role', label: 'পদবি', type: 'text', required: false, public: true, sample: 'সাধারণ সদস্য' },
+      { key: 'member_id', label: 'সদস্য নম্বর', type: 'text', required: false, public: true, sample: '২০২৬-০১৪' },
+      photoField('ছবি'),
+      validUntil('৩১ ডিসেম্বর ২০২৭', 'মেয়াদ'),
+    ],
+    settings: cardSettings,
+    elements: [
+      rect(0, 0, 323.5, 42, { fill: green }),
+      text({ x: 14, y: 6, w: 230, h: 18, content: 'আপনার সংগঠনের নাম', ...bn, weight: 700, size: 11, color: '#FFFFFF', align: 'left', shrink: true }),
+      text({ x: 14, y: 24, w: 230, h: 13, content: 'সদস্য পরিচয়পত্র', ...bn, size: 7.5, color: '#D1FAE5', align: 'left' }),
+      photo(14, 52, 70, 88, { radius: 4, stroke: green, strokeWidth: 1 }),
+      text({ x: 96, y: 52, w: 150, h: 21, content: '{{recipient_name}}', font: 'noto-serif-bengali', weight: 700, size: 12, color: '#0F172A', align: 'left', shrink: true, name: 'নাম' }),
+      text({ x: 96, y: 74, w: 150, h: 14, content: '{{role}}', ...bn, size: 8, color: green, align: 'left', shrink: true }),
+      ...detail(96, 96, 150, 'সদস্য নম্বর', '{{member_id}}', '#0F172A', '#64748B', 'left', 'hind-siliguri'),
+      ...detail(96, 122, 150, 'মেয়াদ', '{{valid_until}}', '#0F172A', '#64748B', 'left', 'hind-siliguri'),
+      qr(255, 54, 56),
+      text({ x: 200, y: 112, w: 111, h: 9, content: '{{serial}}', font: 'jetbrains-mono', size: 5, color: '#64748B', align: 'right', letterSpacing: 0.3 }),
+      text({ x: 14, y: 150, w: 296, h: 30, content: 'এই কার্ডটি পাওয়া গেলে অনুগ্রহ করে সংগঠনের কার্যালয়ে ফেরত দিন।', ...bn, size: 6.5, color: '#475569', align: 'left', valign: 'top', lineHeight: 1.45 }),
+      rect(0, 192, 323.5, 12, { fill: green }),
+    ],
+  };
+}
+
+/** An empty ID card: a photo frame, the name and a QR code, to build on or to lay over your own artwork. */
+export function blankIdCard(): Design {
+  return {
+    version: 1,
+    ...card('landscape', '#FFFFFF'),
+    fields: [{ key: 'recipient_name', label: 'Name', type: 'text', required: true, public: true, sample: 'Card Holder' }, photoField()],
+    settings: cardSettings,
+    elements: [
+      photo(20, 40, 80, 100, { radius: 4, stroke: '#CBD5E1', strokeWidth: 0.75 }),
+      text({ x: 112, y: 58, w: 190, h: 24, content: '{{recipient_name}}', size: 14, weight: 700, align: 'left', shrink: true, name: 'Name' }),
+      qr(252, 128, 52),
+    ],
+  };
+}
+
 export function blankDesign(width = 1123, height = 794): Design {
   return {
     version: 1,
@@ -296,7 +458,14 @@ export const PRESETS: Preset[] = [
   { slug: 'podium', name: 'Podium', category: 'competition', description: 'Position, name and competition — built on custom fields.', design: podium() },
   { slug: 'bookend', name: 'Bookend', category: 'appreciation', description: 'Heavy top and bottom bars with a script name.', design: bookend() },
   { slug: 'bangla-sanad', name: 'বাংলা সনদপত্র', category: 'bangla', description: 'A Bangla certificate with proper conjunct rendering.', design: banglaSanad() },
+  { slug: 'club-member-card', name: 'Club Member', category: 'id-card', description: 'Portrait membership card with a round photo, member ID and validity date.', design: clubMember() },
+  { slug: 'staff-id-card', name: 'Staff ID', category: 'id-card', description: 'Landscape staff card with designation, department and employee ID.', design: staffId() },
+  { slug: 'student-id-card', name: 'Student ID', category: 'id-card', description: 'Portrait student card with class, roll and blood group.', design: studentId() },
+  { slug: 'bangla-member-card', name: 'সদস্য পরিচয়পত্র', category: 'id-card', description: 'A Bangla membership card, with a note for anyone who finds it.', design: banglaMember() },
 ];
+
+export const CERTIFICATE_PRESETS = PRESETS.filter((p) => p.category !== 'id-card');
+export const ID_CARD_PRESETS = PRESETS.filter((p) => p.category === 'id-card');
 
 export function getPreset(slug: string | null | undefined) {
   return PRESETS.find((p) => p.slug === slug) ?? null;

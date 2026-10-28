@@ -8,6 +8,7 @@ const columns: { title: string; links: [string, string][] }[] = [
     title: 'Product',
     links: [
       ['Certificate editor', '/create'],
+      ['ID card maker', '/id-card-maker'],
       ['Templates', '/templates'],
       ['Bulk from CSV', '/certificate-maker/bulk-certificate-generator'],
       ['Pricing', '/pricing'],

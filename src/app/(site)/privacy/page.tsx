@@ -26,8 +26,9 @@ export default function Privacy() {
       <h2>What is public</h2>
       <p>Each registered certificate has a verification page. It shows the issuer, the issue date, the fields the issuer marked as public, and the recipient’s name in the form the issuer chose (by default, first name and last initial). Email fields are never shown.</p>
       <p>Recipients can ask for a verification page to be removed from search engines using the report form on that page.</p>
-      <h2>CSV files</h2>
-      <p>CSV files used for bulk issuing are read in your browser. We receive only the values needed to register each certificate.</p>
+      <h2>CSV files and photos</h2>
+      <p>CSV files used for bulk issuing are read in your browser. We receive only the values needed to register each certificate or ID card.</p>
+      <p>Photos for ID cards are placed on the cards in your browser and never uploaded. We keep only each photo’s file name, so that a card can be matched to its photo again when you download it later.</p>
       <h2>Advertising</h2>
       <p>Public pages may show ads from Google AdSense, which may use cookies. Ads are never shown in the editor or your dashboard.</p>
       <h2>Contact</h2>

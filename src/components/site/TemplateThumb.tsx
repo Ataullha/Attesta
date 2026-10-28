@@ -35,7 +35,8 @@ export function TemplateThumb({ slug, design: given, label, values, className = 
       c.height = Math.round(design.page.height * scale);
       const ctx = c.getContext('2d')!;
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
-      await renderPage(ctx, design, { ...sampleValues(design, values), serial: SERIAL, verify_url: `${site.url}/verify/${SERIAL}` }, assets, { preview: false });
+      // A template picture shows a stand-in where each person's photo will go.
+      await renderPage(ctx, design, { ...sampleValues(design, values), serial: SERIAL, verify_url: `${site.url}/verify/${SERIAL}` }, assets, { preview: false, photoPlaceholders: true });
       // Lets scripts/render-previews.mjs know the drawing is finished.
       if (!cancelled && mine === latest) c.dataset.rendered = 'true';
     };

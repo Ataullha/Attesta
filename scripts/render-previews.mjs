@@ -6,6 +6,7 @@
 //
 //   npm run dev                  (in one terminal)
 //   npm run previews             (in another; needs Playwright: npm i --no-save playwright)
+//   npm run previews -- staff-id-card club-member-card   (only these templates)
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +37,12 @@ if (!index?.ok()) {
   console.error(`${base}/preview did not load (status ${index?.status()}). Is \`npm run dev\` running?`);
   process.exit(1);
 }
-const slugs = await page.$$eval('a[href^="/preview/"]', (links) => links.map((a) => a.getAttribute('href').split('/').pop()));
+const only = process.argv.slice(2);
+const slugs = (await page.$$eval('a[href^="/preview/"]', (links) => links.map((a) => a.getAttribute('href').split('/').pop()))).filter((s) => !only.length || only.includes(s));
+if (!slugs.length) {
+  console.error(`No templates called ${only.join(', ')}.`);
+  process.exit(1);
+}
 
 for (const slug of slugs) {
   await page.goto(`${base}/preview/${slug}`);

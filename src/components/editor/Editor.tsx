@@ -4,19 +4,19 @@ import './fonts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { designSchema, localImages, withUploadedImages, type Design, type DesignElement, type ElementType, type Field } from '@/lib/design';
+import { PAGE_SIZES, designKind, designSchema, kindNoun, localImages, withUploadedImages, type Design, type DesignElement, type ElementType, type Field } from '@/lib/design';
 import { cleanValues } from '@/lib/values';
 import { site } from '@/lib/site';
 import { btn } from '@/components/ui/styles';
 import { SealMark } from '@/components/site/SealMark';
-import { AssetStore, normaliseImageFile, type ImageRef } from './assets';
+import { AssetStore, normaliseImageFile, photoSide, type ImageRef } from './assets';
 import { DRAFT_RETURN, saveDraft, takeDraft } from './draft';
-import { buildPdf, downloadBytes, safeFilename } from './pdf';
+import { buildPdf, buildSheetPdf, downloadBytes, printsOnSheets, safeFilename, type PdfJob } from './pdf';
 import { Stage } from './Stage';
 import { Inspector, type ElementAction } from './Inspector';
 import { LeftPanel } from './LeftPanel';
 import { IssuePanel, type IssueError, type IssueResult } from './IssuePanel';
-import { ELEMENT_LABELS, makeElement, makeText, newId, sampleValues } from './elements';
+import { ELEMENT_LABELS, makeElement, makePhoto, makeText, newId, photoFieldFor, sampleValues, unitFor } from './elements';
 import { useHistory } from './useHistory';
 
 export type EditorUser = { name: string; credits: number; freeLeft: number; emailVerified: boolean } | null;
@@ -68,6 +68,8 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
   const [progress, setProgress] = useState<string | null>(null);
   const [result, setResult] = useState<IssueResult | null>(null);
   const [error, setError] = useState<IssueError | null>(null);
+  // What was last issued, so it can be downloaded again in another layout (an ID card on an A4 sheet).
+  const [lastJob, setLastJob] = useState<PdfJob | null>(null);
   // Below the `lg` breakpoint only one side panel is shown at a time; at `lg` and above both always are.
   const [panel, setPanel] = useState<'tools' | 'details'>('details');
   const [typing, setTyping] = useState(false);
@@ -76,6 +78,8 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
   const selected = design.elements.find((e) => e.id === selectedId) ?? null;
+  const kind = designKind(design);
+  const noun = kindNoun(kind);
   const previewValues = useMemo(
     () => ({ ...sampleValues(design, values), serial: PREVIEW_SERIAL, verify_url: `${site.url}/verify/${PREVIEW_SERIAL}` }),
     [design, values],
@@ -184,13 +188,28 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
   );
 
   function addElement(type: ElementType, role?: 'signature' | 'logo' | 'image') {
+    if (type === 'photo') {
+      // A photo frame is filled from a photo field: the design's own, or a new one.
+      const f = photoFieldFor(design);
+      const el = makePhoto(design, f.key);
+      history.set((d) => ({ ...d, fields: d.fields.some((x) => x.key === f.key) ? d.fields : [...d.fields, f], elements: [...d.elements, el] }));
+      setSelectedId(el.id);
+      return;
+    }
     const el = type === 'text' ? makeText(design) : makeElement(type, design, role);
     history.set((d) => ({ ...d, elements: [...d.elements, el] }));
     setSelectedId(el.id);
   }
 
   function addFieldBox(f: Field) {
-    const el = makeText(design, { content: `{{${f.key}}}`, name: f.label, shrink: true, size: 24, h: 44 });
+    if (f.type === 'photo') {
+      const el = makePhoto(design, f.key);
+      history.set((d) => ({ ...d, fields: d.fields.some((x) => x.key === f.key) ? d.fields : [...d.fields, f], elements: [...d.elements, el] }));
+      setSelectedId(el.id);
+      return;
+    }
+    const u = unitFor(design);
+    const el = makeText(design, { content: `{{${f.key}}}`, name: f.label, shrink: true, size: 24 * u, h: 44 * u });
     // Find the first vertical slot (from the middle downwards, then upwards) not covered by
     // anything except page-sized frames, so the new box doesn't land on existing text.
     const { width: W, height: H } = design.page;
@@ -198,8 +217,8 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     const free = (y: number) => blockers.every((b) => y + el.h <= b.y || y >= b.y + b.h || el.x + el.w <= b.x || el.x >= b.x + b.w);
     const start = H / 2 - el.h / 2;
     for (let step = 0; step < 40; step++) {
-      const y = step % 2 === 0 ? start + (step / 2) * 24 : start - ((step + 1) / 2) * 24;
-      if (y > 20 && y + el.h < H - 20 && free(y)) {
+      const y = step % 2 === 0 ? start + (step / 2) * 24 * u : start - ((step + 1) / 2) * 24 * u;
+      if (y > 20 * u && y + el.h < H - 20 * u && free(y)) {
         el.y = y;
         break;
       }
@@ -335,21 +354,29 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
       const ref = await uploadImage(file, 'background');
       history.set((d) => {
         let { width, height } = d.page;
+        const card = designKind(d) === 'id-card';
         if (matchPage && ref.width && ref.height) {
-          const long = 1123;
-          if (ref.width >= ref.height) {
-            width = long;
-            height = Math.round((long * ref.height) / ref.width);
+          if (card) {
+            // An ID card stays the size of an ID card; the artwork only decides which way up it is.
+            const s = PAGE_SIZES[ref.width >= ref.height ? 'card-landscape' : 'card-portrait'];
+            width = s.width;
+            height = s.height;
           } else {
-            height = long;
-            width = Math.round((long * ref.width) / ref.height);
+            const long = 1123;
+            if (ref.width >= ref.height) {
+              width = long;
+              height = Math.round((long * ref.height) / ref.width);
+            } else {
+              height = long;
+              width = Math.round((long * ref.width) / ref.height);
+            }
           }
         }
         const sx = width / d.page.width;
         const sy = height / d.page.height;
         return {
           ...d,
-          page: { width, height, background: { ...d.page.background, assetId: ref.assetId, localId: ref.localId, fit: 'stretch' } },
+          page: { width, height, background: { ...d.page.background, assetId: ref.assetId, localId: ref.localId, fit: card ? 'cover' : 'stretch' } },
           elements: d.elements.map((el) => ({ ...el, x: el.x * sx, y: el.y * sy, w: el.w * sx, h: el.h * sy })),
         };
       });
@@ -360,6 +387,13 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     } finally {
       setUploading(false);
     }
+  }
+
+  /** A photo chosen for the one recipient issued from the editor. It is drawn here and never uploaded. */
+  function onPhoto(key: string, file: File) {
+    assets.addPhoto(file.name, file, photoSide(design));
+    setValues((v) => ({ ...v, [key]: file.name }));
+    setAssetVersion((n) => n + 1);
   }
 
   async function save() {
@@ -411,7 +445,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
       const res = await fetch('/api/issue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ design, templateId, mode: 'single', batchName: name || 'Single certificate', recipients: [{ values: clean.values }] }),
+        body: JSON.stringify({ design, templateId, mode: 'single', batchName: name || `Single ${noun}`, recipients: [{ values: clean.values }] }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -420,8 +454,10 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
       }
       const { serial, verifyUrl } = j.issued[0] as { serial: string; verifyUrl: string };
       setProgress('Building PDF…');
-      const pdf = await buildPdf([{ design, values: clean.values, serial, verifyUrl, watermark: !!j.guest }], assets);
+      const job: PdfJob = { design, values: clean.values, serial, verifyUrl, watermark: !!j.guest };
+      const pdf = await buildPdf([job], assets);
       downloadBytes(pdf, `${safeFilename(clean.values.recipient_name)}-${serial}.pdf`);
+      setLastJob(job);
       setResult({ serial, verifyUrl, guest: !!j.guest, remaining: j.remaining });
       if (!j.guest) router.refresh();
     } catch (err) {
@@ -432,9 +468,15 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     }
   }
 
+  async function downloadSheet() {
+    if (!lastJob) return;
+    const pdf = await buildSheetPdf([lastJob], assets);
+    downloadBytes(pdf, `${safeFilename(lastJob.values.recipient_name)}-${lastJob.serial}-A4.pdf`);
+  }
+
   const quotaNote = user
-    ? `${user.freeLeft} free certificate${user.freeLeft === 1 ? '' : 's'} left this month${user.credits ? ` · ${user.credits.toLocaleString()} package credits` : ''}. Each certificate gets a permanent verification page.`
-    : `Without an account you can make ${guestLimit} watermarked certificates. A free account gives you verifiable ones.`;
+    ? `${user.freeLeft} free ${user.freeLeft === 1 ? noun : kindNoun(kind, true)} left this month${user.credits ? ` · ${user.credits.toLocaleString()} package credits` : ''}. Each ${noun} gets a permanent verification page.`
+    : `Without an account you can make ${guestLimit} watermarked ${kindNoun(kind, true)}. A free account gives you verifiable ones.`;
 
   const iconButton =
     'inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg text-ink-2 transition-colors hover:bg-rule/60 disabled:pointer-events-none disabled:opacity-40 sm:min-w-0 sm:px-2.5 sm:text-[13.5px]';
@@ -445,7 +487,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     // gets a fixed-height two-column one: stage on the left, the chosen panel on the right.
     <div className="flex min-h-dvh flex-col bg-paper lg:h-dvh short:h-dvh">
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-rule bg-card px-3 sm:gap-3 sm:px-4 lg:static short:static">
-        <h1 className="sr-only">Certificate editor</h1>
+        <h1 className="sr-only">{kind === 'id-card' ? 'ID card editor' : 'Certificate editor'}</h1>
         <Link href={user ? '/app' : '/'} className="flex shrink-0 items-center gap-2 text-ink" aria-label={`${site.name} — ${user ? 'your dashboard' : 'home'}`}>
           <SealMark size={24} className="text-accent" />
           <span className="hidden font-display text-[18px] leading-none sm:inline">{site.name}</span>
@@ -562,7 +604,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
         </aside>
 
         <aside
-          aria-label={selected ? 'Element settings' : 'Issue a certificate'}
+          aria-label={selected ? 'Element settings' : `Issue ${kind === 'id-card' ? 'an ID card' : 'a certificate'}`}
           onFocus={onFieldFocus}
           onBlur={onFieldBlur}
           className={`${panel === 'details' ? '' : 'hidden'} bg-paper lg:order-3 lg:block lg:w-[330px] lg:shrink-0 lg:overflow-y-auto lg:border-l short:w-[340px] short:shrink-0 short:overflow-y-auto`}
@@ -584,6 +626,8 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
               design={design}
               values={values}
               onValue={(k, v) => setValues((s) => ({ ...s, [k]: v }))}
+              onPhoto={onPhoto}
+              onSheet={lastJob && !lastJob.watermark && printsOnSheets(lastJob.design) ? downloadSheet : undefined}
               onSettings={(p) => history.set((d) => ({ ...d, settings: { ...d.settings, ...p } }))}
               onIssue={issue}
               busy={busy}

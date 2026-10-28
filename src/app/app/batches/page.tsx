@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/verify';
 import { btn, card } from '@/components/ui/styles';
 import { PageTitle } from '@/components/app/Shell';
 import { BatchDownload } from '@/components/app/Actions';
+import { batchKind } from '@/lib/certificates';
 
 export const metadata: Metadata = { title: 'Bulk batches' };
 
@@ -20,7 +21,7 @@ export default async function BatchesPage({ searchParams }: PageProps<'/app/batc
   const [[{ total }], batches] = await Promise.all([
     db().select({ total: count() }).from(schema.batches).where(mine),
     db()
-      .select({ id: schema.batches.id, name: schema.batches.name, count: schema.batches.count, createdAt: schema.batches.createdAt })
+      .select({ id: schema.batches.id, name: schema.batches.name, count: schema.batches.count, createdAt: schema.batches.createdAt, ...batchKind })
       .from(schema.batches)
       .where(mine)
       .orderBy(desc(schema.batches.createdAt), asc(schema.batches.id))
@@ -35,7 +36,7 @@ export default async function BatchesPage({ searchParams }: PageProps<'/app/batc
         <Link href="/app/bulk" className={btn.primary}>New bulk batch</Link>
       </PageTitle>
       <p className="-mt-4 mb-8 max-w-[62ch] text-[15.5px] text-ink-2">
-        Every batch you have issued from a CSV file. Download the certificates again as PDFs at any time, or export the list as a spreadsheet.
+        Every batch you have issued from a CSV file. Download the certificates or ID cards again as PDFs at any time, or export the list as a spreadsheet.
       </p>
 
       {batches.length === 0 ? (
@@ -50,11 +51,11 @@ export default async function BatchesPage({ searchParams }: PageProps<'/app/batc
               <span className="min-w-0">
                 <span className="block break-words font-medium">{b.name}</span>
                 <span className="text-[13px] text-muted">
-                  {b.count.toLocaleString()} {b.count === 1 ? 'certificate' : 'certificates'} · {formatDate(b.createdAt)}
+                  {b.count.toLocaleString()} {b.card ? (b.count === 1 ? 'ID card' : 'ID cards') : b.count === 1 ? 'certificate' : 'certificates'} · {formatDate(b.createdAt)}
                 </span>
               </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <BatchDownload batchId={b.id} />
+              <span className="flex flex-wrap items-center justify-end gap-1">
+                <BatchDownload batchId={b.id} card={b.card} photos={b.photos} />
                 <a href={`/api/certificates/export?batch=${b.id}`} download className={btn.small + ' hover:bg-rule/60'}>
                   Export CSV
                 </a>

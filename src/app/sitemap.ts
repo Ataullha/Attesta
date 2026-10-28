@@ -12,6 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${site.url}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
     { url: `${site.url}/create`, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${site.url}/templates`, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${site.url}/id-card-maker`, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${site.url}/certificate-maker`, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${site.url}/verify`, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${site.url}/pricing`, changeFrequency: 'monthly', priority: 0.6 },

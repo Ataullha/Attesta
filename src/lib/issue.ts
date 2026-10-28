@@ -2,7 +2,7 @@ import 'server-only';
 import { and, count, eq, gte, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { canonicalJson, hasLocalImages, referencedAssetIds, type Design } from './design';
-import { cleanValues } from './values';
+import { cleanValues, expiryOf, isPublicField } from './values';
 import { newGuestSerial, newSerial, signPayload, verifyUrl } from './signing';
 import { sha256Hex } from './security/crypto';
 import { HttpError } from './security/request';
@@ -64,7 +64,7 @@ export async function issueForUser(user: SessionUser, input: IssueInput): Promis
   });
 
   const designHash = sha256Hex(canonicalJson(design));
-  const publicKeys = design.fields.filter((f) => f.public && f.type !== 'email').map((f) => f.key);
+  const publicKeys = design.fields.filter(isPublicField).map((f) => f.key);
   const emailKey = design.fields.find((f) => f.type === 'email')?.key;
 
   return db().transaction(async (tx) => {
@@ -126,6 +126,7 @@ export async function issueForUser(user: SessionUser, input: IssueInput): Promis
       const serial = newSerial();
       const fields: Record<string, string> = {};
       for (const k of publicKeys) fields[k] = values[k] ?? '';
+      const expiry = expiryOf(design, values);
       const payload = canonicalJson({
         v: 1,
         serial,
@@ -134,6 +135,8 @@ export async function issueForUser(user: SessionUser, input: IssueInput): Promis
         recipient: values.recipient_name,
         fields,
         design: designHash,
+        // Only on documents with a "valid until" date, so every older record keeps its exact form.
+        expires: expiry?.date,
       });
       return {
         serial,
@@ -147,6 +150,7 @@ export async function issueForUser(user: SessionUser, input: IssueInput): Promis
         indexable: design.settings.indexable,
         payload,
         issuedAt,
+        expiresAt: expiry?.at ?? null,
         ...signPayload(payload),
       };
     });

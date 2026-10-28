@@ -23,12 +23,20 @@ export const FONT_IDS = Object.keys(FONTS) as [FontId, ...FontId[]];
 /* Page sizes (design units are CSS pixels at 96 dpi; 1px = 0.75pt)    */
 /* ------------------------------------------------------------------ */
 
+/** What a design is. It decides the wording around it (the verification page, file names) and how it prints. */
+export type DesignKind = 'certificate' | 'id-card';
+
 export const PAGE_SIZES = {
-  'a4-landscape': { label: 'A4 landscape', width: 1123, height: 794 },
-  'a4-portrait': { label: 'A4 portrait', width: 794, height: 1123 },
-  'letter-landscape': { label: 'Letter landscape', width: 1056, height: 816 },
-  'letter-portrait': { label: 'Letter portrait', width: 816, height: 1056 },
-} as const;
+  'a4-landscape': { label: 'A4 landscape', width: 1123, height: 794, kind: 'certificate' },
+  'a4-portrait': { label: 'A4 portrait', width: 794, height: 1123, kind: 'certificate' },
+  'letter-landscape': { label: 'Letter landscape', width: 1056, height: 816, kind: 'certificate' },
+  'letter-portrait': { label: 'Letter portrait', width: 816, height: 1056, kind: 'certificate' },
+  // The standard ID card (ISO/IEC 7810 ID-1, "CR80"): 85.6 × 54 mm, the size card printers take.
+  'card-landscape': { label: 'ID card landscape (85.6 × 54 mm)', width: 323.5, height: 204, kind: 'id-card' },
+  'card-portrait': { label: 'ID card portrait (54 × 85.6 mm)', width: 204, height: 323.5, kind: 'id-card' },
+} as const satisfies Record<string, { label: string; width: number; height: number; kind: DesignKind }>;
+
+export type PageSizeId = keyof typeof PAGE_SIZES;
 
 /* ------------------------------------------------------------------ */
 /* Schema                                                              */
@@ -39,13 +47,13 @@ const num = (min: number, max: number) => z.number().finite().min(min).max(max);
 
 export const RESERVED_KEYS = ['serial', 'verify_url'] as const;
 
+const fieldKey = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, 'Field keys use lowercase letters, numbers and underscores');
+
 export const fieldSchema = z.object({
-  key: z
-    .string()
-    .regex(/^[a-z][a-z0-9_]{0,39}$/, 'Field keys use lowercase letters, numbers and underscores')
-    .refine((k) => !(RESERVED_KEYS as readonly string[]).includes(k), 'That key is reserved'),
+  key: fieldKey.refine((k) => !(RESERVED_KEYS as readonly string[]).includes(k), 'That key is reserved'),
   label: z.string().trim().min(1).max(60),
-  type: z.enum(['text', 'date', 'email']),
+  // photo: each recipient's picture, named by its file name. expiry: the date the document stops being valid.
+  type: z.enum(['text', 'date', 'email', 'photo', 'expiry']),
   required: z.boolean(),
   public: z.boolean(),
   sample: z.string().max(300),
@@ -92,6 +100,16 @@ export const imageElement = z.object({
   opacity: num(0, 1),
 });
 
+/** A frame filled with each recipient's own photo, from the photo field it names. */
+export const photoElement = z.object({
+  ...base,
+  type: z.literal('photo'),
+  field: fieldKey,
+  radius: num(0, 2000),
+  stroke: hex.nullable(),
+  strokeWidth: num(0, 100),
+});
+
 export const qrElement = z.object({ ...base, type: z.literal('qr'), color: hex, background: hex.nullable() });
 export const barcodeElement = z.object({ ...base, type: z.literal('barcode'), color: hex, showText: z.boolean() });
 export const sealElement = z.object({ ...base, type: z.literal('seal'), color: hex });
@@ -115,6 +133,7 @@ export const lineElement = z.object({
 export const elementSchema = z.discriminatedUnion('type', [
   textElement,
   imageElement,
+  photoElement,
   qrElement,
   barcodeElement,
   sealElement,
@@ -125,6 +144,8 @@ export const elementSchema = z.discriminatedUnion('type', [
 export const designSchema = z
   .object({
     version: z.literal(1),
+    // Absent on designs saved before ID cards existed, which are all certificates.
+    kind: z.enum(['certificate', 'id-card']).optional(),
     page: z.object({
       width: num(200, 4000),
       height: num(200, 4000),
@@ -144,10 +165,16 @@ export const designSchema = z
       keys.add(f.key);
     }
     if (!keys.has('recipient_name')) ctx.addIssue({ code: 'custom', message: 'The recipient_name field is required' });
+    if (d.fields.find((f) => f.key === 'recipient_name')?.type !== 'text' && keys.has('recipient_name')) {
+      ctx.addIssue({ code: 'custom', message: 'The recipient_name field must be text' });
+    }
+    if (d.fields.filter((f) => f.type === 'expiry').length > 1) ctx.addIssue({ code: 'custom', message: 'Only one field can be the date it is valid until' });
+    const photoKeys = new Set(d.fields.filter((f) => f.type === 'photo').map((f) => f.key));
     const ids = new Set<string>();
     for (const e of d.elements) {
       if (ids.has(e.id)) ctx.addIssue({ code: 'custom', message: `Duplicate element id ${e.id}` });
       ids.add(e.id);
+      if (e.type === 'photo' && !photoKeys.has(e.field)) ctx.addIssue({ code: 'custom', message: `A photo frame uses "${e.field}", which is not a photo field` });
     }
   });
 
@@ -155,6 +182,7 @@ export type Design = z.infer<typeof designSchema>;
 export type DesignElement = z.infer<typeof elementSchema>;
 export type TextEl = z.infer<typeof textElement>;
 export type ImageEl = z.infer<typeof imageElement>;
+export type PhotoEl = z.infer<typeof photoElement>;
 export type Field = z.infer<typeof fieldSchema>;
 export type ElementType = DesignElement['type'];
 
@@ -173,9 +201,42 @@ export function fillPlaceholders(text: string, values: Record<string, string>) {
   return text.replace(PLACEHOLDER, (_, key: string) => (Object.hasOwn(values, key) ? values[key] ?? '' : ''));
 }
 
+export function designKind(d: Pick<Design, 'kind'>): DesignKind {
+  return d.kind ?? 'certificate';
+}
+
+/** "certificate" or "ID card", for a sentence; `plural` for "certificates" or "ID cards". */
+export function kindNoun(kind: DesignKind, plural = false) {
+  return kind === 'id-card' ? (plural ? 'ID cards' : 'ID card') : plural ? 'certificates' : 'certificate';
+}
+
+/** The fields filled with each recipient's photo. */
+export function photoFields(d: Pick<Design, 'fields'>) {
+  return d.fields.filter((f) => f.type === 'photo');
+}
+
+/**
+ * How a photo is looked up: by its file name, ignoring folders, the image extension and case, so a
+ * CSV cell of "1001", "1001.jpg" or "photos/1001.JPG" all find the file 1001.jpg.
+ */
+export function photoName(value: string) {
+  return value
+    .trim()
+    .replace(/^.*[\\/]/, '')
+    .replace(/\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i, '')
+    .normalize('NFC')
+    .toLowerCase();
+}
+
+/** The image store's id for the photo with this file name. */
+export function photoRef(value: string) {
+  const name = photoName(value);
+  return name ? `photo:${name}` : null;
+}
+
 /** Elements whose pixels differ from one recipient to the next. */
 export function isDynamic(el: DesignElement) {
-  if (el.type === 'qr' || el.type === 'barcode') return true;
+  if (el.type === 'qr' || el.type === 'barcode' || el.type === 'photo') return true;
   if (el.type === 'text') return placeholdersIn(el.content).length > 0;
   return false;
 }

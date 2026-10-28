@@ -1,6 +1,12 @@
 import 'server-only';
-import { and, eq, ilike, or, type SQL } from 'drizzle-orm';
+import { and, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
 import { schema } from '@/lib/db';
+
+/** What a batch's design is (certificate or ID card) and whether it has photos, read from its stored design. */
+export const batchKind = {
+  card: sql<boolean>`coalesce(${schema.batches.design}->>'kind' = 'id-card', false)`,
+  photos: sql<boolean>`coalesce((${schema.batches.design}->'fields') @> '[{"type":"photo"}]'::jsonb, false)`,
+};
 
 /** Makes `%`, `_` and `\` in a search term match themselves instead of acting as LIKE wildcards. */
 export function likeEscape(term: string) {

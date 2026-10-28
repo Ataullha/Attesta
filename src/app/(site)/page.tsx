@@ -7,7 +7,7 @@ import { SealMark } from '@/components/site/SealMark';
 import { TemplatePreview } from '@/components/site/TemplatePreview';
 import { Tick } from '@/components/site/Tick';
 import { VerifySearch } from '@/components/site/VerifySearch';
-import { PRESETS } from '@/lib/presets';
+import { CERTIFICATE_PRESETS, PRESETS } from '@/lib/presets';
 import { USE_CASES } from '@/lib/usecases';
 import { formatMoney, limits, onlinePaymentMethods, orList, packages, paymentMethodsInWords, perCertificate, site } from '@/lib/site';
 import { payByInWords } from '@/lib/payments/methods';
@@ -300,7 +300,7 @@ export default function Home() {
             </Link>
           </div>
           <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {PRESETS.slice(0, 4).map((p) => (
+            {CERTIFICATE_PRESETS.slice(0, 4).map((p) => (
               <li key={p.slug}>
                 <Link href={`/templates/${p.slug}`} className="group block">
                   <div className="rounded-xl border border-rule bg-card p-1.5 transition-colors group-hover:border-accent">
@@ -312,6 +312,35 @@ export default function Home() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      <section className="border-t border-rule" aria-labelledby="cards-h">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 lg:grid-cols-[1fr_1.05fr]">
+          <div>
+            <h2 id="cards-h" className="font-display text-[32px] leading-tight">ID cards too, photos and all</h2>
+            <p className="mt-4 max-w-[54ch] text-[16.5px] leading-relaxed text-ink-2">
+              New members, staff or students? Make an ID card for each of them from your list and their photos, matched by file name. Print them
+              ten to an A4 sheet with cut marks, or on a card printer. Each card’s QR code shows whether it is valid, expired or revoked.
+            </p>
+            <ul className="mt-5 space-y-1.5 text-[15px] text-ink-2">
+              <li className="flex gap-2"><Tick />Photos never leave your computer</li>
+              <li className="flex gap-2"><Tick />Templates for clubs, staff and students, in English and Bangla</li>
+              <li className="flex gap-2"><Tick />Or your own card design as the background</li>
+            </ul>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/id-card-maker" className={btn.primary}>Make ID cards</Link>
+              <Link href="/templates#id-cards" className={btn.secondary}>ID card templates</Link>
+            </div>
+          </div>
+          <div className="grid grid-cols-[0.63fr_1fr] items-center gap-4">
+            <div className="overflow-hidden rounded-lg border border-rule-2 bg-card shadow-[0_20px_44px_-28px_rgba(15,23,42,0.5)]">
+              <TemplatePreview slug="student-id-card" label="Student ID card template" sizes="(min-width: 1024px) 210px, 38vw" />
+            </div>
+            <div className="overflow-hidden rounded-lg border border-rule-2 bg-card shadow-[0_20px_44px_-28px_rgba(15,23,42,0.5)]">
+              <TemplatePreview slug="bangla-member-card" label="Bangla membership card template" sizes="(min-width: 1024px) 330px, 60vw" />
+            </div>
+          </div>
         </div>
       </section>
 

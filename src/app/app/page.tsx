@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { requireUserPage } from '@/lib/auth/session';
-import { certificateFilter } from '@/lib/certificates';
+import { batchKind, certificateFilter } from '@/lib/certificates';
 import { freeRenewsOn, usageThisMonth } from '@/lib/issue';
 import { emailConfigured } from '@/lib/email';
 import { verifyUrl } from '@/lib/signing';
@@ -34,7 +34,15 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
     db().select({ total: count() }).from(schema.certificates).where(where),
     db().select({ all: count() }).from(schema.certificates).where(eq(schema.certificates.userId, user.id)),
     db()
-      .select({ serial: schema.certificates.serial, name: schema.certificates.recipientName, issuedAt: schema.certificates.issuedAt, revokedAt: schema.certificates.revokedAt, batch: schema.batches.name })
+      .select({
+        serial: schema.certificates.serial,
+        name: schema.certificates.recipientName,
+        issuedAt: schema.certificates.issuedAt,
+        revokedAt: schema.certificates.revokedAt,
+        expiresAt: schema.certificates.expiresAt,
+        batch: schema.batches.name,
+        ...batchKind,
+      })
       .from(schema.certificates)
       .innerJoin(schema.batches, eq(schema.batches.id, schema.certificates.batchId))
       .where(where)
@@ -44,7 +52,7 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
       .limit(PER_PAGE)
       .offset((page - 1) * PER_PAGE),
     db()
-      .select({ id: schema.batches.id, name: schema.batches.name, count: schema.batches.count, createdAt: schema.batches.createdAt })
+      .select({ id: schema.batches.id, name: schema.batches.name, count: schema.batches.count, createdAt: schema.batches.createdAt, ...batchKind })
       .from(schema.batches)
       .where(and(eq(schema.batches.userId, user.id), eq(schema.batches.mode, 'bulk')))
       .orderBy(desc(schema.batches.createdAt))
@@ -56,6 +64,7 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
       .where(and(eq(schema.assets.userId, user.id), isNull(schema.assets.deletedAt), inArray(schema.assets.kind, ['signature', 'logo', 'seal']))),
   ]);
   const pages = Math.max(1, Math.ceil(Number(total) / PER_PAGE));
+  const now = new Date();
   const freeLeft = Math.max(0, limits.freeMonthly - used);
   const mustConfirm = !user.emailVerified && emailConfigured();
   const smallest = packages[0];
@@ -135,8 +144,8 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
           <ul className={`${card} divide-y divide-rule`}>
             {batches.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-[14.5px]">
-                <span className="min-w-0"><span className="block truncate font-medium">{b.name}</span><span className="text-[13px] text-muted">{b.count.toLocaleString()} certificates · {formatDate(b.createdAt)}</span></span>
-                <BatchDownload batchId={b.id} />
+                <span className="min-w-0"><span className="block truncate font-medium">{b.name}</span><span className="text-[13px] text-muted">{b.count.toLocaleString()} {b.card ? 'ID cards' : 'certificates'} · {formatDate(b.createdAt)}</span></span>
+                <BatchDownload batchId={b.id} card={b.card} photos={b.photos} />
               </li>
             ))}
           </ul>
@@ -196,6 +205,8 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
             {certs.map((c) => {
               const status = c.revokedAt ? (
                 <span className="rounded-full bg-revoked-soft px-2.5 py-0.5 text-[12.5px] text-revoked">Revoked</span>
+              ) : c.expiresAt && c.expiresAt < now ? (
+                <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-[12.5px] text-warn">Expired</span>
               ) : (
                 <span className="rounded-full bg-seal-soft px-2.5 py-0.5 text-[12.5px] text-seal">Valid</span>
               );
@@ -204,7 +215,7 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
                   <div className="flex items-start justify-between gap-3 xl:block">
                     <div className="min-w-0">
                       <p className="break-words font-medium">{c.name}</p>
-                      <p className="break-words text-[12.5px] text-muted">{c.batch}</p>
+                      <p className="break-words text-[12.5px] text-muted">{c.card ? `ID card · ${c.batch}` : c.batch}</p>
                     </div>
                     <span className="shrink-0 xl:hidden">{status}</span>
                   </div>
@@ -216,7 +227,7 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
                     <span className="text-[13.5px] text-ink-2 xl:text-[14.5px]">{formatDate(c.issuedAt)}</span>
                     <div className="hidden xl:block">{status}</div>
                     <div className="w-full md:ml-auto md:w-auto xl:ml-0 xl:w-full">
-                      <CertificateActions serial={c.serial} verifyUrl={verifyUrl(c.serial)} revoked={!!c.revokedAt} />
+                      <CertificateActions serial={c.serial} verifyUrl={verifyUrl(c.serial)} revoked={!!c.revokedAt} photo={c.photos} />
                     </div>
                   </div>
                 </li>
