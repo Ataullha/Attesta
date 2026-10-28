@@ -1,6 +1,6 @@
 /**
  * Everything a site owner is expected to change lives in this file.
- * Prices and payment account numbers below are placeholders — replace them
+ * Prices and the bank transfer details below are placeholders — replace them
  * before going live.
  */
 
@@ -50,10 +50,10 @@ export const packages: PackageDef[] = [
   { id: 'scale', name: 'Scale', credits: 10000, price: 20000, currency: 'BDT', note: 'Institutions issuing all year' },
 ];
 
-/** Where customers send money. Replace the account details with your own. */
+/** Where customers send money. The bank details are placeholders; replace them with your own. */
 export const paymentMethods = [
-  { id: 'bkash', label: 'bKash', instructions: 'Send Money to 01XXXXXXXXX (Personal). Use your email as the reference.' },
-  { id: 'nagad', label: 'Nagad', instructions: 'Send Money to 01XXXXXXXXX. Use your email as the reference.' },
+  { id: 'bkash', label: 'bKash', instructions: 'Send Money to 01879093418 (Personal). Use your email as the reference.' },
+  { id: 'nagad', label: 'Nagad', instructions: 'Send Money to 01879093418. Use your email as the reference.' },
   { id: 'bank', label: 'Bank transfer', instructions: 'Account name: [YOUR COMPANY] · Account no: [ACCOUNT NUMBER] · Bank: [BANK, BRANCH]' },
 ] as const;
 
