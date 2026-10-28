@@ -173,8 +173,11 @@ export const payments = pgTable(
     method: text('method').notNull(),
     trxId: text('trx_id').notNull(),
     sender: text('sender').notNull(),
-    status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
+    // failed and cancelled are for online payments (SSLCommerz): the gateway said so, or the checkout was left unfinished.
+    status: text('status', { enum: ['pending', 'approved', 'rejected', 'failed', 'cancelled'] }).notNull().default('pending'),
     note: text('note'),
+    /** For online payments: what SSLCommerz reported (session key, validation id, card type, risk). */
+    gateway: jsonb('gateway').$type<Record<string, string>>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     reviewedBy: uuid('reviewed_by'),

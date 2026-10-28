@@ -224,3 +224,34 @@ export async function continueWithGoogle(browser: Browser, person: GooglePerson 
   // Google's redirect back is a navigation from another site, so it carries no Origin of ours.
   return browser.get(back.pathname + back.search, { sameOrigin: false, headers: { 'Sec-Fetch-Site': 'cross-site' } });
 }
+
+// ---------------------------------------------------------------------------------------------
+// SSLCommerz. The customer's part, on its payment page, is played against the stand-in (setup.ts).
+// ---------------------------------------------------------------------------------------------
+
+export const sslcommerzUrl = () => inject('sslcommerzUrl');
+
+export type PostBack = { url: string; ipn: string; fields: Record<string, string> };
+
+/** The customer pays, fails or cancels on SSLCommerz's page: what SSLCommerz then posts back to the app, and where. */
+export async function atSslcommerz(tranId: string, outcome: 'success' | 'fail' | 'cancel', extra: { risky?: boolean; amount?: string } = {}): Promise<PostBack> {
+  const res = await fetch(`${sslcommerzUrl()}/__pay`, { method: 'POST', body: JSON.stringify({ tranId, outcome, ...extra }) });
+  if (!res.ok) throw new Error(`The SSLCommerz stand-in has no checkout ${tranId}: ${res.status}`);
+  return (await res.json()) as PostBack;
+}
+
+export const sslcommerzMode = (mode: { init?: 'ok' | 'fail'; validation?: 'ok' | 'down' }) =>
+  fetch(`${sslcommerzUrl()}/__mode`, { method: 'POST', body: JSON.stringify(mode) });
+
+/**
+ * A form posted from another site, as SSLCommerz's page (through the customer's browser) and its
+ * server post to the app: no Origin of ours, and no cookies, since the session cookie is SameSite=Lax.
+ */
+export function postFromSslcommerz(url: string, fields: Record<string, string>) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: 'https://sandbox.sslcommerz.com', 'Sec-Fetch-Site': 'cross-site', 'x-forwarded-for': freshIp() },
+    body: new URLSearchParams(fields),
+    redirect: 'manual',
+  });
+}

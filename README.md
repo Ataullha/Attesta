@@ -51,6 +51,7 @@ It prints four lines. In Vercel → **Settings → Environment Variables**, add 
 | `CRON_SECRET` | any long random text |
 | `RESEND_API_KEY`, `EMAIL_FROM` | optional, see “Email” below |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional, see “Sign in with Google” below |
+| `SSLCOMMERZ_STORE_ID`, `SSLCOMMERZ_STORE_PASSWORD`, `SSLCOMMERZ_LIVE` | optional, see “Online payment (SSLCommerz)” below |
 
 > **Keep `SIGNING_PRIVATE_KEY` secret and backed up.** If it is lost, new certificates can still be issued with a new key,
 > but if the *public* key is lost, older certificates can no longer show “signature confirmed”.
@@ -84,6 +85,7 @@ Vercel → **Settings → Domains** → add it and follow the DNS instructions. 
 **`src/lib/site.ts`**
 - `packages` — prices and certificate counts
 - `paymentMethods` — your bKash / Nagad numbers and bank details (currently placeholders `01XXXXXXXXX`)
+- `onlinePaymentMethods` — what your SSLCommerz store accepts, if you use it (card, bKash, Nagad, Rocket, internet banking)
 - `site.name`, `supportEmail`, `operatedFrom` — “Attesta” is a placeholder brand name; rename it here
 - `limits` — guest 2, free 5 per month, bulk max 5000 rows
 
@@ -142,11 +144,43 @@ The content security policy opens up for Google’s ad domains automatically whe
   how to issue certificates of their own. Recipients sharing their certificates is how most new issuers will find the site.
 
 ## How payments work
-1. A user picks a package on **Packages and billing**, pays by bKash / Nagad / bank, and submits the transaction ID.
-2. You check it against your statement in **Admin → Payments** and press **Confirm**. Credits are added instantly.
+Customers buy a package on **Packages and billing**, in one of two ways:
+
+- **Online**, once SSLCommerz is set up (below): by card, bKash, Nagad, Rocket or internet banking on SSLCommerz’s payment page.
+  The credits are added as soon as SSLCommerz confirms the payment, with nothing for you to do.
+- **Sending the money themselves**, by bKash, Nagad or bank transfer, then submitting the transaction ID. You check it against your
+  statement in **Admin → Payments** and press **Confirm**, and the credits are added instantly.
 
 Each transaction ID can only be submitted once, and a payment can only be confirmed once.
-An automatic gateway (SSLCommerz, bKash PGW) can be added later in `src/app/api/billing/`.
+
+## Online payment (SSLCommerz)
+Optional. With `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD` set, the billing page offers **Pay online** first and sending
+money yourself second, and the public pages say that card payment is accepted.
+
+1. Register a sandbox store at [developer.sslcommerz.com/registration](https://developer.sslcommerz.com/registration/). The store ID
+   and store password arrive by email.
+2. Set both variables, in Vercel and in `.env.local`, and redeploy. Pages built ahead of time (home, pricing, privacy, terms) read them
+   when the site is built, so always redeploy after changing them. Try a payment with the sandbox’s test cards and wallets, which
+   take no real money.
+3. In the SSLCommerz merchant panel, set the IPN address to `<APP_URL>/api/billing/sslcommerz/ipn`. The app also sends it with every
+   checkout.
+4. For real payments, apply to SSLCommerz for a live store. Then replace the two values with the live ones, set `SSLCOMMERZ_LIVE=true`
+   and redeploy.
+
+How it stays right:
+- Nothing posted back to the site is trusted. The customer’s return from the payment page and SSLCommerz’s server-to-server notice
+  (IPN) only say which checkout to look at; the app then asks SSLCommerz’s validation API, and adds credits only for a payment it calls
+  valid, for that checkout, for the full amount.
+- The return and the notice often arrive together. The credits are added once, whichever comes first, and a payment SSLCommerz
+  confirms always wins over an earlier “failed” or “cancelled”.
+- A payment SSLCommerz rates risky is not credited by itself: it waits in **Admin → Payments**. Look it up in your SSLCommerz panel
+  before confirming it, and refund it there if you reject it.
+- If SSLCommerz can’t be reached when the customer comes back, their billing page says the payment is waiting. The notice, which
+  SSLCommerz sends again until it is acknowledged, settles it, and the daily cleanup job asks SSLCommerz about any checkout still
+  unfinished after a day before closing it.
+- Credits are digital, so customers aren’t asked for an address. SSLCommerz requires one, so checkouts say “Not collected”.
+- Locally, the sandbox can send the customer back to `http://localhost:3000`, but its notices can’t reach your computer, so there the
+  return alone settles each payment.
 
 ## How verification works
 - Every certificate gets a random serial like `ATT-7K2Q-9M4D-X1TB` (60 random bits, never sequential).
@@ -174,7 +208,9 @@ Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi.
 - CSRF: every state-changing request must come from the site’s own origin.
 - Google sign-in: the authorisation code flow with PKCE, a state value and a nonce, kept in a signed cookie that lasts ten minutes and
   is used once. The ID token's issuer, audience, expiry, nonce and confirmed address are checked before anyone is signed in.
-- Rate limits (stored in Postgres): login, register, password reset, issuing, uploads, reports.
+- Online payments: credits only for what SSLCommerz’s validation API confirms (status, transaction, amount), added once in a
+  transaction however many notices arrive. The store password is used only on the server, and card details never reach the site.
+- Rate limits (stored in Postgres): login, register, password reset, issuing, uploads, reports, checkouts.
 - Quotas are enforced in a database transaction with a row lock, so parallel requests can’t exceed them.
 - Uploads: content-sniffed (PNG/JPEG/WebP only), re-encoded with sharp to strip metadata, 4 MB limit. Signatures are private to their owner.
 - Headers: strict CSP, HSTS, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy.
@@ -225,12 +261,13 @@ export TEST_DATABASE_URL=postgres://user:password@127.0.0.1:5432/attesta_test
 
 npm test               # unit tests, and tests against the real database (skipped without TEST_DATABASE_URL)
 npm run build
-npm run test:e2e       # starts the built app, with stand-ins for the mail provider and Google, and drives it over HTTP
+npm run test:e2e       # starts the built app, with stand-ins for the mail provider, Google and SSLCommerz, and drives it over HTTP
 ```
 
 `npm test` covers the signing and serial rules, design and CSV handling, password hashing, image re-encoding, redirects,
 one-time links, rate limits and the CSV export. `npm run test:e2e` covers what a person does: sign up (with a password or with Google), confirm by email, issue,
-verify, revoke, reset a password, export, the admin screens, and what search engines are told. It refuses to run if the build is
+verify, revoke, reset a password, export, pay (online, including forged and repeated notices, or by transaction ID), the admin
+screens, and what search engines are told. It refuses to run if the build is
 older than the source. GitHub Actions runs the type check, both suites and the build on every pull request and every push to `main`
 (`.github/workflows/ci.yml`).
 
@@ -247,6 +284,7 @@ src/components/editor/ editor, canvas renderer, PDF builder
 src/components/bulk/   CSV bulk issuing
 src/components/ui/     shared styles, and the in-page dialogs and toasts
 src/lib/               database schema, auth, signing, quotas, presets, site config
+src/lib/payments/      SSLCommerz checkout, validation and settlement
 drizzle/               SQL migrations
 tests/unit/            logic with no database
 tests/integration/     logic against a real Postgres

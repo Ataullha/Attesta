@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { site } from '@/lib/site';
+import { sslcommerzConfigured } from '@/lib/payments/sslcommerz';
 
 export const metadata: Metadata = { title: 'Terms of use', alternates: { canonical: '/terms' } };
 
@@ -20,7 +21,7 @@ export default function Terms() {
       </ul>
       <p>We may revoke certificates and suspend accounts that break these terms.</p>
       <h2>Packages and payments</h2>
-      <p>Package credits are added after payment is confirmed and do not expire. Refunds for unused credits are handled on request at <a href={`mailto:${site.supportEmail}`}>{site.supportEmail}</a>.</p>
+      <p>Package credits are added after payment is confirmed and do not expire.{sslcommerzConfigured() && ' Online payments are processed by SSLCommerz.'} Refunds for unused credits are handled on request at <a href={`mailto:${site.supportEmail}`}>{site.supportEmail}</a>.</p>
       <h2>Records</h2>
       <p>Verification records are kept so that certificates remain checkable. Revoked certificates keep their page, showing the revocation.</p>
     </div>

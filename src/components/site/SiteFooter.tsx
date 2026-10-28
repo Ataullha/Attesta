@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { paymentMethodsInWords, site } from '@/lib/site';
+import { site } from '@/lib/site';
+import { payByInWords } from '@/lib/payments/methods';
 import { USE_CASES } from '@/lib/usecases';
 
 const columns: { title: string; links: [string, string][] }[] = [
@@ -70,7 +71,7 @@ export function SiteFooter() {
       </div>
       <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-x-6 gap-y-1 border-t border-rule px-5 py-5 text-[13px] text-muted">
         <span>© {new Date().getFullYear()} {site.name}. {site.operatedFrom}.</span>
-        <span>Prices in taka. Pay by {paymentMethodsInWords()}.</span>
+        <span>Prices in taka. Pay by {payByInWords()}.</span>
       </div>
     </footer>
   );

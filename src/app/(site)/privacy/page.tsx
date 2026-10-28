@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { site } from '@/lib/site';
+import { sslcommerzConfigured } from '@/lib/payments/sslcommerz';
 
 export const metadata: Metadata = { title: 'Privacy policy', alternates: { canonical: '/privacy' } };
 
@@ -14,6 +15,12 @@ export default function Privacy() {
         <li>Templates you save and images you upload (signatures, logos, backgrounds). Uploaded images are re-encoded to remove hidden metadata and are only ever served to you.</li>
         <li>For each certificate you issue: its serial number, the field values you entered, the date, and a digitally signed record of those details.</li>
         <li>Payment requests: package, amount, payment method, transaction ID and the number or account you paid from.</li>
+        {sslcommerzConfigured() && (
+          <li>
+            Online payments: SSLCommerz, the payment gateway, receives your name, email address and mobile number with each one. Your card or account
+            details go to SSLCommerz, never to us; we keep what it reports back: its reference numbers, the kind of card or account used and its risk rating.
+          </li>
+        )}
         <li>For abuse prevention: a random cookie identifying your browser and a keyed hash of your IP address. We do not store raw IP addresses.</li>
       </ul>
       <h2>What is public</h2>
