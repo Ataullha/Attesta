@@ -10,7 +10,8 @@ export default async function Image({ params }: { params: Promise<{ serial: stri
   const { serial } = await params;
   const v = await getCertificateView(serial).catch(() => null);
   const color = !v ? '#64748B' : v.status === 'valid' ? '#047857' : v.status === 'revoked' ? '#B91C1C' : '#B45309';
-  const title = !v ? 'Certificate not found' : v.status === 'valid' ? 'Valid certificate' : v.status === 'revoked' ? 'Revoked certificate' : 'Unconfirmed record';
+  const noun = v?.kind === 'id-card' ? 'ID card' : 'certificate';
+  const title = !v ? 'Certificate not found' : v.status === 'valid' ? `Valid ${noun}` : v.status === 'revoked' ? `Revoked ${noun}` : v.status === 'expired' ? `Expired ${noun}` : 'Unconfirmed record';
   return new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#FFFFFF', padding: 72, borderTop: `20px solid ${color}` }}>

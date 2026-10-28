@@ -135,6 +135,8 @@ export const certificates = pgTable(
     issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     revokeReason: text('revoke_reason'),
+    /** The end of the "valid until" day, for documents that have one (ID cards, mostly). */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     deindexed: boolean('deindexed').notNull().default(false),
   },
   (t) => [

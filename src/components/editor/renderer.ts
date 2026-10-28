@@ -2,7 +2,7 @@
 
 import QRCode from 'qrcode';
 import JsBarcode from 'jsbarcode';
-import { FONTS, fillPlaceholders, type Design, type DesignElement, type TextEl } from '@/lib/design';
+import { FONTS, fillPlaceholders, photoRef, type Design, type DesignElement, type PhotoEl, type TextEl } from '@/lib/design';
 import type { AssetStore } from './assets';
 import { FONT_SAMPLE } from './fonts';
 
@@ -178,6 +178,55 @@ export function fitRect(fit: 'contain' | 'cover' | 'stretch', iw: number, ih: nu
   return { x: x + (w - dw) / 2, y: y + (h - dh) / 2, w: dw, h: dh };
 }
 
+/**
+ * Where a photo goes in its frame: filling it, like `cover`, but when the photo is taller than the
+ * frame it is cropped mostly from the bottom, since faces sit in the upper part of a portrait.
+ */
+export function photoRect(iw: number, ih: number, x: number, y: number, w: number, h: number) {
+  const s = Math.max(w / iw, h / ih);
+  const dw = iw * s;
+  const dh = ih * s;
+  return { x: x + (w - dw) / 2, y: y + (h - dh) * 0.3, w: dw, h: dh };
+}
+
+function roundedPath(ctx: CanvasRenderingContext2D, el: PhotoEl) {
+  const r = Math.min(el.radius, el.w / 2, el.h / 2);
+  ctx.beginPath();
+  if (r > 0 && 'roundRect' in ctx) ctx.roundRect(el.x, el.y, el.w, el.h, r);
+  else ctx.rect(el.x, el.y, el.w, el.h);
+}
+
+/** A neutral head and shoulders, standing in for a photo in the editor and in template pictures. */
+export function drawSilhouette(ctx: CanvasRenderingContext2D, el: PhotoEl) {
+  ctx.save();
+  roundedPath(ctx, el);
+  ctx.clip();
+  ctx.fillStyle = '#E2E8F0';
+  ctx.fillRect(el.x, el.y, el.w, el.h);
+  const s = Math.min(el.w, el.h * 0.9);
+  const cx = el.x + el.w / 2;
+  const head = el.y + el.h * 0.4;
+  ctx.fillStyle = '#94A3B8';
+  ctx.beginPath();
+  ctx.arc(cx, head, s * 0.21, 0, Math.PI * 2);
+  ctx.fill();
+  // The shoulders run past the bottom of the frame, which cuts them off as a photo would.
+  ctx.beginPath();
+  ctx.ellipse(cx, head + s * 0.66, s * 0.44, s * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPhotoBorder(ctx: CanvasRenderingContext2D, el: PhotoEl) {
+  if (!el.stroke || el.strokeWidth <= 0) return;
+  ctx.save();
+  roundedPath(ctx, el);
+  ctx.strokeStyle = el.stroke;
+  ctx.lineWidth = el.strokeWidth;
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawPlaceholder(ctx: CanvasRenderingContext2D, el: DesignElement, label: string) {
   ctx.save();
   ctx.strokeStyle = '#B7AE9C';
@@ -199,8 +248,25 @@ export async function drawElement(
   values: RenderValues,
   assets: AssetStore,
   preview: boolean,
+  photoPlaceholders = preview,
 ) {
   switch (el.type) {
+    case 'photo': {
+      const ref = photoRef(values[el.field] ?? '');
+      const img = ref ? await assets.image({ assetId: null, localId: ref }) : null;
+      if (img) {
+        const d = photoRect(img.naturalWidth, img.naturalHeight, el.x, el.y, el.w, el.h);
+        ctx.save();
+        roundedPath(ctx, el);
+        ctx.clip();
+        ctx.drawImage(img, d.x, d.y, d.w, d.h);
+        ctx.restore();
+      } else if (photoPlaceholders) {
+        drawSilhouette(ctx, el);
+      }
+      drawPhotoBorder(ctx, el);
+      return;
+    }
     case 'text':
       drawText(ctx, el, textFor(el, values));
       return;
@@ -280,17 +346,26 @@ export async function drawBackground(ctx: CanvasRenderingContext2D, design: Desi
   }
 }
 
-/** Draws a whole page. The context must already be scaled from design units to pixels. */
+/**
+ * Draws a whole page. The context must already be scaled from design units to pixels.
+ * `photoPlaceholders` shows a stand-in where a photo is missing (it defaults to `preview`).
+ */
 export async function renderPage(
   ctx: CanvasRenderingContext2D,
   design: Design,
   values: RenderValues,
   assets: AssetStore,
-  opts: { preview: boolean; skipBackground?: boolean; elements?: DesignElement[] },
+  opts: { preview: boolean; photoPlaceholders?: boolean; skipBackground?: boolean; elements?: DesignElement[] },
 ) {
   if (!opts.skipBackground) await drawBackground(ctx, design, assets);
   // Resolve images first so drawing order is never interleaved with awaits.
   const els = opts.elements ?? design.elements;
-  await Promise.all(els.filter((e) => e.type === 'image').map((e) => assets.image(e as { assetId: string | null; localId: string | null })));
-  for (const el of els) await drawElement(ctx, el, values, assets, opts.preview);
+  await Promise.all(
+    els.map((e) => {
+      if (e.type === 'image') return assets.image(e);
+      const ref = e.type === 'photo' ? photoRef(values[e.field] ?? '') : null;
+      return ref ? assets.image({ assetId: null, localId: ref }) : null;
+    }),
+  );
+  for (const el of els) await drawElement(ctx, el, values, assets, opts.preview, opts.photoPlaceholders ?? opts.preview);
 }

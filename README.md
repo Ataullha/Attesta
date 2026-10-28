@@ -1,6 +1,6 @@
-# Attesta — certificate generator with QR verification
+# Attesta — certificate and ID card generator with QR verification
 
-Design certificates (from templates or your own artwork), issue one or thousands from CSV, and give every certificate a signed, permanent verification page.
+Design certificates and ID cards (from templates or your own artwork), issue one or thousands from CSV, and give every one a signed, permanent verification page.
 
 Built with Next.js 16, TypeScript, Tailwind CSS 4, Drizzle ORM and Postgres. Ready for Vercel.
 
@@ -182,6 +182,27 @@ How it stays right:
 - Locally, the sandbox can send the customer back to `http://localhost:3000`, but its notices can’t reach your computer, so there the
   return alone settles each payment.
 
+## ID cards
+The editor makes ID cards as well as certificates: choose an ID card template (club member, staff, student, a Bangla member card),
+a blank card, or an ID card size under **Page**. Cards are the standard 85.6 × 54 mm (ISO/IEC 7810 ID-1, “CR80”), landscape or
+portrait, and work like certificates: each has a serial, a QR code, a signed verification page, and can be revoked.
+
+- **Photos.** A *Photo* element is a frame filled with each person’s photo from a field of type *Photo*. When issuing one card, the
+  photo is chosen in the editor. When issuing from a CSV, the photos (or a ZIP of them) are added on the bulk page and matched to rows
+  by file name: a column holds each photo’s file name, or the files are named after a column such as the member ID (`1001.jpg`).
+  Folders, the extension and capitals are ignored. Rows naming a photo that wasn’t added are flagged before anything is issued, and
+  every photo is opened before any card is registered.
+- **Photos are never uploaded.** They are placed in the browser, turned the right way up (phones save photos sideways with an
+  orientation tag), shrunk to about 400 dpi for their frame and embedded as JPEG. The server keeps only each photo’s file name, so
+  a later download from the dashboard can ask for the photos again and match them.
+- **Valid until.** A field of type *Valid until* takes dates as people write them (`31/12/2027`, `2027-12-31`, `31 December 2027`,
+  `December 2027`, Bangla digits and month names) and prints them in one form. The date is part of the signed record; after the end
+  of that day (Bangladesh time) the verification page says the card has expired.
+- **Printing.** Bulk downloads, and single cards, come as A4 sheets — 10 landscape or 9 portrait cards a page, edge to edge, with cut
+  marks — or as card-size pages for PVC card printers. Print at actual size.
+- **Defaults.** ID card templates show the holder’s full name on the verification page and keep it out of search engines; both can be
+  changed per template. Each card uses one credit, like a certificate.
+
 ## How verification works
 - Every certificate gets a random serial like `ATT-7K2Q-9M4D-X1TB` (60 random bits, never sequential).
 - The server signs a canonical record (serial, issuer, recipient, public fields, date, design hash) with Ed25519 and stores the signature.
@@ -199,7 +220,7 @@ fields as extra columns. The file opens correctly in Excel, Bangla names include
 PDFs are built **in the user’s browser**, not on the server. This keeps Bangla conjuncts correct (server PDF libraries break them),
 makes the preview identical to the output, and lets 5,000-row batches run without serverless time limits or server cost.
 The server only registers certificates (100 per request) and enforces quotas.
-Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi.
+Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi, and at ~576 dpi on small pages such as ID cards.
 
 ## Security summary
 - Passwords: scrypt (N=32768) with per-user salt. Sessions: random tokens, stored hashed, httpOnly + SameSite cookies.
@@ -266,8 +287,8 @@ npm run test:e2e       # starts the built app, with stand-ins for the mail provi
 
 `npm test` covers the signing and serial rules, design and CSV handling, password hashing, image re-encoding, redirects,
 one-time links, rate limits and the CSV export. `npm run test:e2e` covers what a person does: sign up (with a password or with Google), confirm by email, issue,
-verify, revoke, reset a password, export, pay (online, including forged and repeated notices, or by transaction ID), the admin
-screens, and what search engines are told. It refuses to run if the build is
+verify, revoke, reset a password, export, pay (online, including forged and repeated notices, or by transaction ID), issue ID
+cards (with photos, valid-until dates and expiry), the admin screens, and what search engines are told. It refuses to run if the build is
 older than the source. GitHub Actions runs the type check, both suites and the build on every pull request and every push to `main`
 (`.github/workflows/ci.yml`).
 
@@ -280,7 +301,7 @@ src/app/create/        the certificate editor
 src/app/app/           user panel: certificates, batches, bulk, templates, library, organisation, billing, settings
 src/app/admin/         admin panel
 src/app/api/           all server endpoints
-src/components/editor/ editor, canvas renderer, PDF builder
+src/components/editor/ editor, canvas renderer, PDF builder, A4 card sheets, photos
 src/components/bulk/   CSV bulk issuing
 src/components/ui/     shared styles, and the in-page dialogs and toasts
 src/lib/               database schema, auth, signing, quotas, presets, site config

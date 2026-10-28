@@ -10,6 +10,16 @@ import { JsonLd } from '@/components/site/JsonLd';
 import { ShareCertificate } from '@/components/site/ShareCertificate';
 import { btn } from '@/components/ui/styles';
 import { formatMoney, packages } from '@/lib/site';
+import { kindNoun } from '@/lib/design';
+
+/** "Valid ID card", "This certificate was revoked" and so on: what the page says it found. */
+function stateTitle(v: { kind: 'certificate' | 'id-card'; status: 'valid' | 'revoked' | 'unconfirmed' | 'expired' }) {
+  const noun = kindNoun(v.kind);
+  if (v.status === 'valid') return `Valid ${noun}`;
+  if (v.status === 'revoked') return `This ${noun} was revoked`;
+  if (v.status === 'expired') return `This ${noun} has expired`;
+  return 'The record could not be confirmed';
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +28,8 @@ export async function generateMetadata({ params }: PageProps<'/verify/[serial]'>
   if (serial.startsWith('GUEST-')) return { title: 'Unregistered guest certificate', robots: { index: false } };
   const v = await getCertificateView(serial);
   if (!v) return { title: 'Certificate not found', robots: { index: false, follow: false } };
-  const state = v.status === 'valid' ? 'Valid certificate' : v.status === 'revoked' ? 'Revoked certificate' : 'Certificate record';
+  const noun = kindNoun(v.kind);
+  const state = v.status === 'valid' ? `Valid ${noun}` : v.status === 'revoked' ? `Revoked ${noun}` : v.status === 'expired' ? `Expired ${noun}` : `${noun[0].toUpperCase()}${noun.slice(1)} record`;
   return {
     title: `${state} ${v.serial}`,
     description: `${state} issued to ${v.recipient} by ${v.issuer.name} on ${formatDate(v.issuedAt)}.`,
@@ -66,12 +77,14 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
     );
   }
 
+  const noun = kindNoun(v.kind);
+  const card = v.kind === 'id-card';
   const tone =
     v.status === 'valid'
-      ? { box: 'border-seal/30 bg-seal-soft', text: 'text-seal', title: 'Valid certificate' }
+      ? { box: 'border-seal/30 bg-seal-soft', text: 'text-seal', title: stateTitle(v) }
       : v.status === 'revoked'
-        ? { box: 'border-revoked/30 bg-revoked-soft', text: 'text-revoked', title: 'This certificate was revoked' }
-        : { box: 'border-warn/30 bg-warn-soft', text: 'text-warn', title: 'The record could not be confirmed' };
+        ? { box: 'border-revoked/30 bg-revoked-soft', text: 'text-revoked', title: stateTitle(v) }
+        : { box: 'border-warn/30 bg-warn-soft', text: 'text-warn', title: stateTitle(v) };
 
   const url = `${site.url}/verify/${v.serial}`;
   // LinkedIn's "add a certification" form, filled in: the recipient only has to confirm it.
@@ -98,22 +111,23 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-14">
-      {v.indexable && <JsonLd data={jsonLd} />}
+      {v.indexable && !card && <JsonLd data={jsonLd} />}
       <div className={`flex items-start gap-4 rounded-xl border p-5 ${tone.box}`}>
         <SealMark size={44} className={`shrink-0 ${tone.text}`} />
         <div>
           <h1 className={`font-display text-[28px] leading-tight ${tone.text}`}>{tone.title}</h1>
           <p className="mt-1 text-[15px] text-ink-2">
-            {v.status === 'valid' && `Issued by ${v.issuer.name} on ${formatDate(v.issuedAt)}. The signed record matches.`}
+            {v.status === 'valid' && `Issued by ${v.issuer.name} on ${formatDate(v.issuedAt)}${v.expiresAt ? `, valid until ${formatDate(v.expiresAt)}` : ''}. The signed record matches.`}
+            {v.status === 'expired' && v.expiresAt && `It was valid until ${formatDate(v.expiresAt)}. Issued by ${v.issuer.name} on ${formatDate(v.issuedAt)}; the signed record matches.`}
             {v.status === 'revoked' && v.revokedAt && `Revoked on ${formatDate(v.revokedAt)}. Reason given: ${v.revokeReason ?? 'not stated'}.`}
-            {v.status === 'unconfirmed' && 'The stored record does not match its signature. Do not rely on this certificate; contact the issuer.'}
+            {v.status === 'unconfirmed' && `The stored record does not match its signature. Do not rely on this ${noun}; contact the issuer.`}
           </p>
         </div>
       </div>
 
       <dl className="mt-8">
         <Row label="Serial number"><span className="font-mono tracking-wide">{v.serial}</span></Row>
-        <Row label="Awarded to">{v.recipient}</Row>
+        <Row label={card ? 'Card holder' : 'Awarded to'}>{v.recipient}</Row>
         {v.fields.map((f) => (
           <Row key={f.label} label={f.label}>{f.value}</Row>
         ))}
@@ -134,11 +148,11 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
       </dl>
 
       <p className="mt-6 text-[14px] leading-relaxed text-muted">
-        {site.name} confirms this certificate was issued by the account above on the date shown. The issuer is responsible for what it certifies.
+        {site.name} confirms this {noun} was issued by the account above on the date shown. The issuer is responsible for what it {card ? 'states' : 'certifies'}.
         {v.issuer.verified ? ' The issuer proved control of its domain.' : ''}
       </p>
 
-      {v.status === 'valid' && (
+      {v.status === 'valid' && !card && (
         <section aria-labelledby="share-h" className="mt-8">
           <h2 id="share-h" className="text-[15px] font-semibold">Is this your certificate? Share the proof</h2>
           <ShareCertificate url={url} linkedInAddUrl={linkedInAddUrl} />
@@ -146,23 +160,23 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
       )}
 
       <details className="mt-10 border-t border-rule pt-6">
-        <summary className="cursor-pointer text-[15px] font-medium text-ink-2">Report a problem with this certificate</summary>
+        <summary className="cursor-pointer text-[15px] font-medium text-ink-2">Report a problem with this {noun}</summary>
         <ReportForm serial={v.serial} />
       </details>
 
       <div className="mt-12 border-t border-rule pt-8">
-        <h2 className="text-[15px] font-semibold">Check another certificate</h2>
+        <h2 className="text-[15px] font-semibold">Check another certificate or ID card</h2>
         <VerifySearch className="mt-3" />
       </div>
 
       {v.status !== 'unconfirmed' && (
         <section aria-labelledby="issue-h" className="mt-12 rounded-xl border border-rule bg-card p-6">
-          <h2 id="issue-h" className="font-display text-[24px] leading-tight">Issue certificates people can check like this</h2>
+          <h2 id="issue-h" className="font-display text-[24px] leading-tight">{card ? 'Make ID cards people can check like this' : 'Issue certificates people can check like this'}</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
-            Give every certificate your organisation issues a page like this one, with a QR code that opens it. Free to start, with packages from {formatMoney(packages[0].price)} for bulk issuing.
+            Give every {card ? 'ID card' : 'certificate'} your organisation issues a page like this one, with a QR code that opens it. Free to start, with packages from {formatMoney(packages[0].price)} for bulk issuing.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href="/" className={btn.primary}>See how it works</Link>
+            <Link href={card ? '/id-card-maker' : '/'} className={btn.primary}>See how it works</Link>
             <Link href="/pricing" className={btn.secondary}>Pricing</Link>
           </div>
         </section>

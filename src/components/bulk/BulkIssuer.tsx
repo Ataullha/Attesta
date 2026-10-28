@@ -4,13 +4,15 @@ import '@/components/editor/fonts';
 import Link from 'next/link';
 import Papa from 'papaparse';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { designSchema, type Design } from '@/lib/design';
+import { designKind, designSchema, kindNoun, photoFields, photoName, type Design } from '@/lib/design';
 import { cleanValues, csvCell } from '@/lib/values';
 import { limits } from '@/lib/site';
 import { btn, card, field } from '@/components/ui/styles';
-import { AssetStore } from '@/components/editor/assets';
+import { AssetStore, photoSide } from '@/components/editor/assets';
 import { ensureFonts, renderPage } from '@/components/editor/renderer';
-import { buildPdf, downloadBytes, safeFilename, type PdfJob } from '@/components/editor/pdf';
+import { buildPdf, buildSheetPdf, downloadBytes, printsOnSheets, safeFilename, type PdfJob } from '@/components/editor/pdf';
+import { readPhotoFiles, skippedNote } from '@/components/editor/photo-files';
+import { sheetLayout } from '@/components/editor/sheet';
 
 type TemplateOption = { id: string; name: string };
 type Row = { index: number; values: Record<string, string>; errors: string[]; duplicate: boolean };
@@ -18,8 +20,17 @@ type Issued = { serial: string; verifyUrl: string };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0980-\u09ff]/g, '');
 
-function guessColumn(fieldKey: string, label: string, headers: string[]) {
-  const candidates = [fieldKey, label, fieldKey.replace(/_/g, ''), ...(fieldKey === 'recipient_name' ? ['name', 'fullname', 'studentname', 'participant', 'নাম'] : []), ...(fieldKey === 'issue_date' ? ['date', 'তারিখ'] : [])].map(norm);
+const EXTRA_NAMES: Record<string, string[]> = {
+  recipient_name: ['name', 'fullname', 'studentname', 'participant', 'membername', 'employeename', 'নাম'],
+  issue_date: ['date', 'তারিখ'],
+};
+const TYPE_NAMES: Partial<Record<Design['fields'][number]['type'], string[]>> = {
+  photo: ['photo', 'photos', 'picture', 'image', 'pic', 'file', 'filename', 'photofile', 'ছবি'],
+  expiry: ['validuntil', 'validity', 'valid', 'expiry', 'expires', 'expirydate', 'expiresat', 'মেয়াদ'],
+};
+
+function guessColumn(fieldKey: string, label: string, headers: string[], type?: Design['fields'][number]['type']) {
+  const candidates = [fieldKey, label, fieldKey.replace(/_/g, ''), ...(EXTRA_NAMES[fieldKey] ?? []), ...((type && TYPE_NAMES[type]) ?? [])].map(norm);
   const exact = headers.find((h) => candidates.includes(norm(h)));
   if (exact) return exact;
   // Then partial matches, e.g. "Course Title" for the "course" field.
@@ -27,7 +38,7 @@ function guessColumn(fieldKey: string, label: string, headers: string[]) {
   return headers.find((h) => norm(h).length > 2 && (norm(h).includes(key) || key.includes(norm(h)) || norm(label).includes(norm(h)))) ?? '';
 }
 
-function Preview({ design, values, assets }: { design: Design; values: Record<string, string>; assets: AssetStore }) {
+function Preview({ design, values, assets, photoVersion }: { design: Design; values: Record<string, string>; assets: AssetStore; photoVersion: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let cancelled = false;
@@ -41,13 +52,16 @@ function Preview({ design, values, assets }: { design: Design; values: Record<st
       c.height = Math.round(design.page.height * scale);
       const ctx = c.getContext('2d')!;
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
-      await renderPage(ctx, design, { ...values, serial: 'ATT-PREV-IEW0-0000', verify_url: 'https://example.com/verify/preview' }, assets, { preview: false });
+      // A photo that is missing shows as a stand-in here, so it is noticed before issuing.
+      await renderPage(ctx, design, { ...values, serial: 'ATT-PREV-IEW0-0000', verify_url: 'https://example.com/verify/preview' }, assets, { preview: false, photoPlaceholders: true });
     })();
     return () => {
       cancelled = true;
     };
-  }, [design, values, assets]);
-  return <canvas ref={ref} role="img" aria-label="Preview of the selected row" className="block h-auto w-full rounded-lg border border-rule bg-card" style={{ aspectRatio: `${design.page.width} / ${design.page.height}` }} />;
+  }, [design, values, assets, photoVersion]);
+  // A small page, such as an ID card, is shown at a sensible size rather than across the whole column.
+  const maxWidth = design.page.width < 700 ? (design.page.width > design.page.height ? 480 : 320) : undefined;
+  return <canvas ref={ref} role="img" aria-label="Preview of the selected row" className="block h-auto w-full rounded-lg border border-rule bg-card" style={{ aspectRatio: `${design.page.width} / ${design.page.height}`, maxWidth }} />;
 }
 
 export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: { templates: TemplateOption[]; initialTemplateId: string | null; credits: number; freeLeft: number }) {
@@ -67,7 +81,12 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<(Issued | null)[]>([]);
   const [batchId, setBatchId] = useState<string | null>(null);
-  const [output, setOutput] = useState<'merged' | 'separate'>('merged');
+  const [output, setOutput] = useState<'sheets' | 'merged' | 'separate'>('merged');
+  // Photos are matched to rows by file name and stay in this page; `photoNames` is what was chosen.
+  const [photoNames, setPhotoNames] = useState<Set<string>>(new Set());
+  const [photoVersion, setPhotoVersion] = useState(0);
+  const [photoNote, setPhotoNote] = useState<string | null>(null);
+  const [readingPhotos, setReadingPhotos] = useState(false);
 
   useEffect(() => {
     if (!templateId) return;
@@ -81,6 +100,8 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
         if (!parsed.success) throw new Error('This template has a problem. Open it in the editor and save it again.');
         setDesign(parsed.data);
         setTemplateName(j.name);
+        // ID cards are printed: A4 sheets with cut marks is the useful default.
+        setOutput(printsOnSheets(parsed.data) ? 'sheets' : 'merged');
       })
       .catch((e: Error) => setLoadError(e.message));
   }, [templateId]);
@@ -89,11 +110,32 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
     if (!design) return;
     setMapping((m) => {
       const next: Record<string, string> = {};
-      for (const f of design.fields) next[f.key] = headers.includes(m[f.key]) ? m[f.key] : guessColumn(f.key, f.label, headers);
+      for (const f of design.fields) next[f.key] = headers.includes(m[f.key]) ? m[f.key] : guessColumn(f.key, f.label, headers, f.type);
       return next;
     });
   }, [design, headers]);
 
+  // Photos named after a column, such as a member ID, are matched by that column: once photos are
+  // added, a photo field with no column yet takes the one whose values name the most of them.
+  useEffect(() => {
+    if (!design || !photoNames.size) return;
+    setMapping((m) => {
+      const next = { ...m };
+      let changed = false;
+      for (const f of photoFields(design)) {
+        if (next[f.key]) continue;
+        const hits = (h: string) => raw.filter((r) => photoNames.has(photoName(r[h] ?? ''))).length;
+        const best = headers.map((h) => [h, hits(h)] as const).sort((a, b) => b[1] - a[1])[0];
+        if (best && best[1] > 0) {
+          next[f.key] = best[0];
+          changed = true;
+        }
+      }
+      return changed ? next : m;
+    });
+  }, [design, headers, raw, photoNames]);
+
+  const photoKeys = design ? photoFields(design) : [];
   const rows: Row[] = useMemo(() => {
     if (!design) return [];
     const seen = new Set<string>();
@@ -102,12 +144,18 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
       for (const f of design.fields) input[f.key] = mapping[f.key] ? (r[mapping[f.key]] ?? '') : '';
       const res = cleanValues(design, input);
       const values = res.ok ? res.values : input;
+      const errors = res.ok ? [] : res.errors;
+      for (const f of photoFields(design)) {
+        const name = values[f.key];
+        // A row that names a photo must have it; one that names none simply has no photo, unless it is required.
+        if (name && !photoNames.has(photoName(name))) errors.push(`No photo called ${name}`);
+      }
       const key = JSON.stringify(design.fields.map((f) => (values[f.key] ?? '').toLowerCase()));
       const duplicate = seen.has(key);
       seen.add(key);
-      return { index, values, errors: res.ok ? [] : res.errors, duplicate };
+      return { index, values, errors, duplicate };
     });
-  }, [raw, mapping, design]);
+  }, [raw, mapping, design, photoNames]);
 
   const ready = rows.filter((r) => !r.errors.length && !(skipDuplicates && r.duplicate));
   const problems = rows.filter((r) => r.errors.length);
@@ -115,6 +163,32 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
   const unmappedRequired = design?.fields.filter((f) => f.required && !mapping[f.key]) ?? [];
   const available = freeLeft + credits;
   const previewRow = ready[Math.min(previewIndex, Math.max(0, ready.length - 1))];
+  const kind = design ? designKind(design) : 'certificate';
+  const nouns = kindNoun(kind, true);
+  const withoutPhoto = photoKeys.length ? ready.filter((r) => photoKeys.some((f) => !r.values[f.key])).length : 0;
+  const sheet = design && printsOnSheets(design) ? sheetLayout(design.page.width * 0.75, design.page.height * 0.75) : null;
+
+  async function onPhotos(files: FileList) {
+    if (!design) return;
+    setReadingPhotos(true);
+    setPhotoNote(null);
+    try {
+      const { photos, skipped } = await readPhotoFiles(Array.from(files));
+      const side = photoSide(design);
+      const names = new Set(photoNames);
+      for (const p of photos) {
+        assets.addPhoto(p.name, p.file, side);
+        names.add(photoName(p.name));
+      }
+      setPhotoNames(names);
+      setPhotoVersion((v) => v + 1);
+      setPhotoNote(skippedNote(skipped));
+    } catch (e) {
+      setPhotoNote(`The photos could not be read: ${(e as Error).message}`);
+    } finally {
+      setReadingPhotos(false);
+    }
+  }
 
   function onFile(file: File) {
     setError(null);
@@ -151,7 +225,7 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
   function sampleCsv() {
     if (!design) return;
     const head = design.fields.map((f) => csvCell(f.label)).join(',');
-    const row = design.fields.map((f) => csvCell(f.sample || (f.type === 'date' ? '' : f.label))).join(',');
+    const row = design.fields.map((f) => csvCell(f.sample || (f.type === 'date' ? '' : f.type === 'photo' ? 'photo-1.jpg' : f.label))).join(',');
     downloadBytes(new Blob(['\uFEFF' + head + '\n' + row + '\n'], { type: 'text/csv' }), `${safeFilename(templateName || 'template')}-sample.csv`, 'text/csv');
   }
 
@@ -170,9 +244,22 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
     let bid = batchId;
     const chunk = limits.issueChunk;
     try {
+      // Every photo is opened before anything is registered, so one the browser cannot read stops
+      // the batch while nothing has been spent on it.
+      const named = [...new Set(ready.flatMap((r) => photoKeys.map((f) => r.values[f.key]).filter(Boolean)))];
+      const unreadable: string[] = [];
+      for (let i = 0; i < named.length; i++) {
+        if (i % 10 === 0) setProgress({ done: i, total: named.length, label: 'Checking photos' });
+        if (!(await assets.checkPhoto(named[i]))) unreadable.push(named[i]);
+      }
+      if (unreadable.length) {
+        setError(`${unreadable.length} photo${unreadable.length === 1 ? '' : 's'} could not be opened: ${unreadable.slice(0, 8).join(', ')}${unreadable.length > 8 ? '…' : ''}. Save ${unreadable.length === 1 ? 'it' : 'them'} as JPEG or PNG and add ${unreadable.length === 1 ? 'it' : 'them'} again. Nothing was issued.`);
+        setPhase('setup');
+        return;
+      }
       for (let start = 0; start < ready.length; start += chunk) {
         if (out.slice(start, start + chunk).every(Boolean)) continue;
-        setProgress({ done: start, total: ready.length, label: 'Registering certificates' });
+        setProgress({ done: start, total: ready.length, label: `Registering ${nouns}` });
         const part = ready.slice(start, start + chunk);
         const res = await fetch('/api/issue', {
           method: 'POST',
@@ -203,18 +290,22 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
     try {
       const JSZip = (await import('jszip')).default;
       const indexCsv = ['Name,Serial,Verification link', ...jobs.map((j) => [csvCell(j.values.recipient_name), j.serial, j.verifyUrl].join(','))].join('\n');
-      const base = safeFilename(templateName || 'certificates');
-      if (output === 'merged') {
-        const per = 250;
+      const base = safeFilename(templateName || nouns);
+      const indexName = `${kind === 'id-card' ? 'id-cards' : 'certificates'}.csv`;
+      if (output === 'merged' || output === 'sheets') {
+        // Parts of about 250 pages; for sheets, a whole number of sheets, so no sheet is left half full mid-way.
+        const per = output === 'sheets' && sheet ? sheet.perSheet * Math.floor(250 / sheet.perSheet) : 250;
+        const build = output === 'sheets' ? buildSheetPdf : buildPdf;
+        const suffix = output === 'sheets' ? '-A4' : '';
         const parts: Uint8Array[] = [];
         for (let s = 0; s < jobs.length; s += per) {
-          parts.push(await buildPdf(jobs.slice(s, s + per), assets, (d) => setProgress({ done: s + d, total: jobs.length, label: 'Building PDF' })));
+          parts.push(await build(jobs.slice(s, s + per), assets, (d) => setProgress({ done: s + d, total: jobs.length, label: 'Building PDF' })));
         }
-        if (parts.length === 1) downloadBytes(parts[0], `${base}.pdf`);
+        if (parts.length === 1) downloadBytes(parts[0], `${base}${suffix}.pdf`);
         else {
           const zip = new JSZip();
-          parts.forEach((p, i) => zip.file(`${base}-part-${i + 1}.pdf`, p));
-          zip.file('certificates.csv', '\uFEFF' + indexCsv);
+          parts.forEach((p, i) => zip.file(`${base}${suffix}-part-${i + 1}.pdf`, p));
+          zip.file(indexName, '\uFEFF' + indexCsv);
           downloadBytes(await zip.generateAsync({ type: 'blob', compression: 'STORE' }), `${base}.zip`, 'application/zip');
         }
       } else {
@@ -228,11 +319,11 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
           zip.file(name, await buildPdf([j], assets));
           setProgress({ done: i + 1, total: jobs.length, label: 'Building PDFs' });
         }
-        zip.file('certificates.csv', '\uFEFF' + indexCsv);
+        zip.file(indexName, '\uFEFF' + indexCsv);
         downloadBytes(await zip.generateAsync({ type: 'blob', compression: 'STORE' }), `${base}.zip`, 'application/zip');
       }
     } catch (e) {
-      setError(`Building the files failed: ${(e as Error).message}. Your certificates are registered — you can download them again from the dashboard.`);
+      setError(`Building the files failed: ${(e as Error).message}. Your ${nouns} are registered — you can download them again from the dashboard.`);
     } finally {
       setPhase('issued');
     }
@@ -285,10 +376,41 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
         </label>
       </section>
 
+      {design && photoKeys.length > 0 && (
+        <section className={`${card} p-5`} aria-labelledby="photos-h">
+          <h2 id="photos-h" className="text-[17px] font-semibold">Photos</h2>
+          <p className="mt-1 max-w-[70ch] text-[14px] leading-relaxed text-muted">
+            Choose everyone’s photos, or a ZIP of them. Each one is matched to its row by file name: name the files after a column such as the
+            ID (<code className="font-mono text-[12.5px]">1001.jpg</code>), or add a column holding each photo’s file name. Photos are read in
+            your browser and never uploaded.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <label className={`${btn.secondary} cursor-pointer has-focus-visible:ring-2 has-focus-visible:ring-accent`}>
+              <input
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp,.zip,application/zip"
+                className="sr-only"
+                disabled={busy || readingPhotos}
+                onChange={(e) => {
+                  if (e.target.files?.length) onPhotos(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+              {readingPhotos ? 'Reading photos…' : photoNames.size ? 'Add more photos' : 'Choose photos or a ZIP'}
+            </label>
+            <span className="text-[14px] text-ink-2" aria-live="polite">
+              {photoNames.size ? `${photoNames.size.toLocaleString()} photo${photoNames.size === 1 ? '' : 's'} added` : 'No photos added yet'}
+            </span>
+          </div>
+          {photoNote && <p role="status" className="mt-3 text-[13.5px] text-warn">{photoNote}</p>}
+        </section>
+      )}
+
       {design && headers.length > 0 && (
         <section className={`${card} p-5`}>
           <h2 className="text-[17px] font-semibold">3. Match columns to fields</h2>
-          <p className="mt-1 text-[14px] text-muted">Each field is a box on your template. Choose which column fills it.</p>
+          <p className="mt-1 text-[14px] text-muted">Each field is a box on your template. Choose which column fills it{photoKeys.length ? ', and which column holds the photo file names' : ''}.</p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[520px] text-left text-[14.5px]">
               <thead>
@@ -307,14 +429,21 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
                       <code className="ml-2 font-mono text-[11.5px] text-accent">{`{${f.key}}`}</code>
                     </td>
                     <td className="py-2.5 pr-4">
-                      <select className={field.small} value={mapping[f.key] ?? ''} disabled={busy || issued.some(Boolean)} onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value }))}>
-                        <option value="">{f.type === 'date' ? 'Not in file — use today' : 'Not in file'}</option>
+                      <select className={field.small} aria-label={`CSV column for ${f.label}`} value={mapping[f.key] ?? ''} disabled={busy || issued.some(Boolean)} onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value }))}>
+                        <option value="">{f.type === 'date' ? 'Not in file — use today' : f.type === 'expiry' ? 'Not in file — no end date' : f.type === 'photo' ? 'Not in file — no photos' : 'Not in file'}</option>
                         {headers.map((h) => (
                           <option key={h} value={h}>{h}</option>
                         ))}
                       </select>
                     </td>
-                    <td className="max-w-[220px] truncate py-2.5 text-ink-2">{mapping[f.key] ? raw[0]?.[mapping[f.key]] : '—'}</td>
+                    <td className="max-w-[220px] truncate py-2.5 text-ink-2">
+                      {mapping[f.key] ? raw[0]?.[mapping[f.key]] : '—'}
+                      {f.type === 'photo' && mapping[f.key] && raw.length > 0 && (
+                        <span className="block text-[12.5px] text-muted">
+                          {raw.filter((r) => photoNames.has(photoName(r[mapping[f.key]] ?? ''))).length.toLocaleString()} of {raw.length.toLocaleString()} rows have a photo
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -331,7 +460,7 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
             <div>
               {previewRow ? (
                 <>
-                  <Preview design={design} values={previewRow.values} assets={assets} />
+                  <Preview design={design} values={previewRow.values} assets={assets} photoVersion={photoVersion} />
                   <div className="mt-2 flex items-center justify-between text-[13.5px] text-muted">
                     <span>Row {previewRow.index + 2} of the file</span>
                     <span className="flex gap-1">
@@ -365,6 +494,11 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
                   <button type="button" className="mt-2 text-[13.5px] font-medium text-revoked underline" onClick={downloadProblems}>Download these rows as CSV</button>
                 </div>
               )}
+              {withoutPhoto > 0 && (
+                <p className="text-warn">
+                  {withoutPhoto.toLocaleString()} {withoutPhoto === 1 ? 'row has' : 'rows have'} no photo and will be issued without one.
+                </p>
+              )}
               <p className="text-ink-2">
                 Uses {Math.min(ready.length, freeLeft)} free and {Math.max(0, ready.length - freeLeft).toLocaleString()} package credits. You have {available.toLocaleString()} available.
               </p>
@@ -375,7 +509,7 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
               )}
               {phase !== 'issued' && phase !== 'building' && (
                 <button type="button" className={btn.primary + ' w-full'} disabled={busy || !ready.length || ready.length > available} onClick={issueAll}>
-                  {partlyIssued ? 'Continue issuing' : `Issue ${ready.length.toLocaleString()} certificates`}
+                  {partlyIssued ? 'Continue issuing' : `Issue ${ready.length.toLocaleString()} ${ready.length === 1 ? kindNoun(kind) : nouns}`}
                 </button>
               )}
             </div>
@@ -396,14 +530,23 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
 
           {(phase === 'issued' || phase === 'building') && (
             <div className="mt-6 rounded-lg border border-seal/30 bg-seal-soft p-4">
-              <p className="font-medium text-seal">{issued.filter(Boolean).length.toLocaleString()} certificates registered.</p>
-              <fieldset className="mt-3 flex flex-wrap gap-4 text-[14.5px]" disabled={phase === 'building'}>
+              <p className="font-medium text-seal">{issued.filter(Boolean).length.toLocaleString()} {nouns} registered.</p>
+              <fieldset className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[14.5px]" disabled={phase === 'building'}>
                 <legend className="sr-only">Download format</legend>
-                <label className="flex items-center gap-2"><input type="radio" name="out" className="accent-accent" checked={output === 'merged'} onChange={() => setOutput('merged')} />One PDF (250 pages per file)</label>
+                {sheet && (
+                  <label className="flex items-center gap-2">
+                    <input type="radio" name="out" className="accent-accent" checked={output === 'sheets'} onChange={() => setOutput('sheets')} />
+                    A4 sheets for printing ({sheet.perSheet} per page, with cut marks)
+                  </label>
+                )}
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="out" className="accent-accent" checked={output === 'merged'} onChange={() => setOutput('merged')} />
+                  {sheet ? 'One PDF at card size, for card printers' : 'One PDF (250 pages per file)'}
+                </label>
                 <label className="flex items-center gap-2"><input type="radio" name="out" className="accent-accent" checked={output === 'separate'} onChange={() => setOutput('separate')} />Separate PDFs in a ZIP</label>
               </fieldset>
               <button type="button" className={btn.seal + ' mt-4'} disabled={phase === 'building'} onClick={buildOutput}>
-                {phase === 'building' ? 'Building…' : 'Download certificates'}
+                {phase === 'building' ? 'Building…' : `Download ${nouns}`}
               </button>
               <p className="mt-2 text-[13px] text-ink-2">The ZIP also contains a CSV of names, serials and verification links.</p>
             </div>

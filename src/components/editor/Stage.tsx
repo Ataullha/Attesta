@@ -58,7 +58,8 @@ export function Stage(props: {
   const H = design.page.height;
   // Total breathing room around the page: up to 56px on a desktop canvas, tighter on a phone-sized stage.
   const pad = Math.min(56, Math.max(24, Math.min(box.w, box.h) * 0.06));
-  const zoom = Math.max(0.1, Math.min((box.w - pad) / W, (box.h - pad) / H, 2));
+  // A small page such as an ID card may be shown larger than life, so its small type can be worked on.
+  const zoom = Math.max(0.1, Math.min((box.w - pad) / W, (box.h - pad) / H, Math.max(2, 1300 / Math.max(W, H))));
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -134,7 +135,7 @@ export function Stage(props: {
       if (dir.includes('s')) h = Math.max(min, d.orig.h + dy);
       if (dir.includes('w')) { w = Math.max(min, d.orig.w - dx); x = d.orig.x + d.orig.w - w; }
       if (dir.includes('n')) { h = Math.max(min, d.orig.h - dy); y = d.orig.y + d.orig.h - h; }
-      const keepRatio = (e.shiftKey || el.type === 'qr' || el.type === 'seal') && dir.length === 2;
+      const keepRatio = (e.shiftKey || el.type === 'qr' || el.type === 'seal' || el.type === 'photo') && dir.length === 2;
       if (keepRatio) {
         const ratio = d.orig.w / d.orig.h;
         if (w / h > ratio) w = h * ratio;
@@ -174,11 +175,11 @@ export function Stage(props: {
       }}
     >
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_18px_44px_-20px_rgba(15,23,42,0.35)]" style={{ width: W * zoom, height: H * zoom }}>
-        <canvas ref={canvasRef} className="absolute inset-0 block" style={{ width: W * zoom, height: H * zoom }} aria-label="Certificate preview" role="img" />
+        <canvas ref={canvasRef} className="absolute inset-0 block" style={{ width: W * zoom, height: H * zoom }} aria-label={design.kind === 'id-card' ? 'ID card preview' : 'Certificate preview'} role="img" />
         <div className="absolute inset-0" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
           {design.elements.map((el) => {
             const selected = el.id === selectedId;
-            const keys = el.type === 'text' ? placeholdersIn(el.content) : [];
+            const keys = el.type === 'text' ? placeholdersIn(el.content) : el.type === 'photo' ? [el.field] : [];
             const showDashed = showBoxes && !selected && (keys.length > 0 || el.type === 'qr' || el.type === 'barcode' || el.type === 'image');
             return (
               <div

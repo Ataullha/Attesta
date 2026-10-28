@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { FONTS, FONT_IDS, type Design, type DesignElement } from '@/lib/design';
+import { FONTS, FONT_IDS, designKind, kindNoun, photoFields, type Design, type DesignElement } from '@/lib/design';
 import { btn, field } from '@/components/ui/styles';
 import { ELEMENT_LABELS } from './elements';
 
@@ -220,9 +220,44 @@ export function Inspector({ el, design, live, commit, set, onAction, onUpload, u
         </Section>
       )}
 
+      {el.type === 'photo' && (
+        <Section title="Photo">
+          <p className="text-[13px] leading-snug text-ink-2">
+            Each {kindNoun(designKind(design))} shows its own person’s photo here. When issuing from a CSV, photos are matched to rows by file name.
+          </p>
+          {photoFields(design).length > 1 && (
+            <label className="block">
+              <span className="mb-1 block text-[12px] text-muted">Photo field</span>
+              <select className={field.small} value={el.field} onChange={(e) => set({ field: e.target.value } as Partial<DesignElement>)}>
+                {photoFields(design).map((f) => (
+                  <option key={f.key} value={f.key}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <Num label="Corner radius" value={el.radius} min={0} onLive={(v) => live({ radius: Math.max(0, v) } as Partial<DesignElement>)} onCommit={commit} />
+            <div className="flex items-end">
+              <button type="button" className={btn.small + ' w-full border border-rule-2 hover:bg-card'} onClick={() => set({ radius: Math.max(el.w, el.h) } as Partial<DesignElement>)}>
+                Make it round
+              </button>
+            </div>
+          </div>
+          <Toggle label="Border" checked={!!el.stroke} onChange={(v) => set({ stroke: v ? '#FFFFFF' : null } as Partial<DesignElement>)} />
+          {el.stroke && (
+            <>
+              <Color label="Border colour" value={el.stroke} onChange={(v) => set({ stroke: v } as Partial<DesignElement>)} />
+              <Num label="Border width" value={el.strokeWidth} step={0.25} min={0} onLive={(v) => live({ strokeWidth: v } as Partial<DesignElement>)} onCommit={commit} />
+            </>
+          )}
+        </Section>
+      )}
+
       {el.type === 'qr' && (
         <Section title="QR code">
-          <p className="text-[13px] leading-snug text-ink-2">Each certificate gets its own code, opening its verification page.</p>
+          <p className="text-[13px] leading-snug text-ink-2">Each {kindNoun(designKind(design))} gets its own code, opening its verification page.</p>
           <Color label="Colour" value={el.color} onChange={(v) => set({ color: v } as Partial<DesignElement>)} />
           <Toggle label="White square behind the code" hint="Keep this on for dark or busy backgrounds so phones can read it." checked={!!el.background} onChange={(v) => set({ background: v ? '#FFFFFF' : null } as Partial<DesignElement>)} />
         </Section>
@@ -230,7 +265,7 @@ export function Inspector({ el, design, live, commit, set, onAction, onUpload, u
 
       {el.type === 'barcode' && (
         <Section title="Barcode">
-          <p className="text-[13px] leading-snug text-ink-2">Code 128 carrying the certificate serial, for handheld scanners.</p>
+          <p className="text-[13px] leading-snug text-ink-2">Code 128 carrying the {kindNoun(designKind(design))}’s serial, for handheld scanners.</p>
           <Color label="Colour" value={el.color} onChange={(v) => set({ color: v } as Partial<DesignElement>)} />
           <Toggle label="Print the serial under the bars" checked={el.showText} onChange={(v) => set({ showText: v } as Partial<DesignElement>)} />
         </Section>
