@@ -84,7 +84,7 @@ Vercel → **Settings → Domains** → add it and follow the DNS instructions. 
 
 **`src/lib/site.ts`**
 - `packages` — prices and certificate counts
-- `paymentMethods` — your bKash / Nagad numbers and bank details (currently placeholders `01XXXXXXXXX`)
+- `paymentMethods` — your bKash / Nagad numbers and bank details (the bank details are still placeholders)
 - `onlinePaymentMethods` — what your SSLCommerz store accepts, if you use it (card, bKash, Nagad, Rocket, internet banking)
 - `site.name`, `supportEmail`, `operatedFrom` — “Attesta” is a placeholder brand name; rename it here
 - `limits` — guest 2, free 5 per month, bulk max 5000 rows
