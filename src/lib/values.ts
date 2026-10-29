@@ -18,6 +18,9 @@ export function cleanValues(design: Pick<Design, 'fields'>, raw: Record<string, 
     // Own properties only: a field called "constructor" must not read Object.prototype.constructor.
     const supplied = Object.hasOwn(raw, f.key) ? raw[f.key] : undefined;
     let v = typeof supplied === 'string' ? supplied : supplied == null ? '' : String(supplied);
+    // A field that is the same for everyone (a venue, a company address) takes the design's value
+    // whenever a recipient has none of their own. A photo is always someone's own.
+    if (f.fixed && f.type !== 'photo' && !v.trim()) v = f.sample;
     v = v.replace(CONTROL, '').replace(/\s+/g, ' ').trim();
     if (v.length > MAX) errors.push(`${f.label} is longer than ${MAX} characters`);
     if (!v && f.type === 'date') v = todayLabel(issueDate);
@@ -62,7 +65,8 @@ BANGLA_MONTHS.forEach((name, i) => MONTHS.set(monthKey(name), i + 1));
 for (const [name, n] of [['জানুয়ারী', 1], ['ফেব্রুয়ারী', 2], ['আগষ্ট', 8]] as const) MONTHS.set(monthKey(name), n);
 
 const BANGLA_DIGITS = '০১২৩৪৫৬৭৮৯';
-const toAscii = (s: string) => s.replace(/[০-৯]/g, (c) => String(BANGLA_DIGITS.indexOf(c)));
+/** Bangla digits as ASCII ones: ০১৭১১ as 01711. */
+export const toAscii = (s: string) => s.replace(/[০-৯]/g, (c) => String(BANGLA_DIGITS.indexOf(c)));
 const toBangla = (s: string) => s.replace(/[0-9]/g, (c) => BANGLA_DIGITS[Number(c)]);
 
 function real(y: number, m: number, d: number): CalendarDate | null {

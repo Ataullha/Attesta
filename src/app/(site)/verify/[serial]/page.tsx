@@ -1,19 +1,19 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { getCertificateView, formatDate } from '@/lib/verify';
+import { getCertificateView, formatDate, type CertificateView } from '@/lib/verify';
 import { normalizeSerial } from '@/lib/signing';
 import { site } from '@/lib/site';
+import { contactDetails } from '@/lib/contact';
+import { capitalised, kindNoun } from '@/lib/design';
 import { SealMark } from '@/components/site/SealMark';
 import { VerifySearch } from '@/components/site/VerifySearch';
-import { ReportForm } from '@/components/site/ReportForm';
 import { JsonLd } from '@/components/site/JsonLd';
 import { ShareCertificate } from '@/components/site/ShareCertificate';
-import { btn } from '@/components/ui/styles';
-import { formatMoney, packages } from '@/lib/site';
-import { kindNoun } from '@/lib/design';
+import { ContactCardView } from '@/components/site/ContactCardView';
+import { InvitationView } from '@/components/site/InvitationView';
+import { IssuerValue, RecordValue, Row, VerifyFooter, toneFor } from '@/components/site/VerifyParts';
 
 /** "Valid ID card", "This certificate was revoked" and so on: what the page says it found. */
-function stateTitle(v: { kind: 'certificate' | 'id-card'; status: 'valid' | 'revoked' | 'unconfirmed' | 'expired' }) {
+function stateTitle(v: Pick<CertificateView, 'kind' | 'status'>) {
   const noun = kindNoun(v.kind);
   if (v.status === 'valid') return `Valid ${noun}`;
   if (v.status === 'revoked') return `This ${noun} was revoked`;
@@ -25,26 +25,33 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps<'/verify/[serial]'>): Promise<Metadata> {
   const serial = normalizeSerial((await params).serial);
-  if (serial.startsWith('GUEST-')) return { title: 'Unregistered guest certificate', robots: { index: false } };
+  if (serial.startsWith('GUEST-')) return { title: 'Unregistered guest copy', robots: { index: false } };
   const v = await getCertificateView(serial);
-  if (!v) return { title: 'Certificate not found', robots: { index: false, follow: false } };
+  if (!v) return { title: 'Serial not found', robots: { index: false, follow: false } };
+  const robots = v.indexable ? { index: true, follow: true } : { index: false, follow: false };
+  const alternates = { canonical: `/verify/${v.serial}` };
+  if (v.kind === 'visiting-card') {
+    const details = contactDetails(v.fields);
+    const title = details.find((d) => d.kind === 'title')?.value;
+    const org = details.find((d) => d.kind === 'org')?.value ?? (v.issuer.kind === 'organization' ? v.issuer.name : null);
+    return {
+      title: [v.recipient, title].filter(Boolean).join(', '),
+      description: `${[v.recipient, title].filter(Boolean).join(', ')}${org ? ` at ${org}` : ''}. Contact details from a visiting card issued by ${v.issuer.name}.`,
+      alternates,
+      robots,
+    };
+  }
+  if (v.kind === 'invitation') {
+    return { title: `Invitation for ${v.recipient}`, description: `An invitation from ${v.issuer.name}, issued on ${formatDate(v.issuedAt)}.`, alternates, robots };
+  }
   const noun = kindNoun(v.kind);
-  const state = v.status === 'valid' ? `Valid ${noun}` : v.status === 'revoked' ? `Revoked ${noun}` : v.status === 'expired' ? `Expired ${noun}` : `${noun[0].toUpperCase()}${noun.slice(1)} record`;
+  const state = v.status === 'valid' ? `Valid ${noun}` : v.status === 'revoked' ? `Revoked ${noun}` : v.status === 'expired' ? `Expired ${noun}` : `${capitalised(noun)} record`;
   return {
     title: `${state} ${v.serial}`,
     description: `${state} issued to ${v.recipient} by ${v.issuer.name} on ${formatDate(v.issuedAt)}.`,
-    alternates: { canonical: `/verify/${v.serial}` },
-    robots: v.indexable ? { index: true, follow: true } : { index: false, follow: false },
+    alternates,
+    robots,
   };
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1 border-b border-rule py-3.5 sm:grid-cols-[180px_1fr] sm:gap-6">
-      <dt className="text-[14px] text-muted">{label}</dt>
-      <dd className="text-[16px] text-ink">{children}</dd>
-    </div>
-  );
 }
 
 export default async function VerifyPage({ params }: PageProps<'/verify/[serial]'>) {
@@ -54,7 +61,7 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
     return (
       <div className="mx-auto max-w-2xl px-5 py-20">
         <p className="font-mono text-[14px] text-muted">{serial}</p>
-        <h1 className="mt-2 font-display text-[36px] leading-tight">This is an unregistered guest certificate</h1>
+        <h1 className="mt-2 font-display text-[36px] leading-tight">This is an unregistered guest copy</h1>
         <p className="mt-4 text-[17px] leading-relaxed text-ink-2">
           It was made with {site.name} without an account, so there is no record of who issued it. It cannot be verified. Ask the issuer for a registered copy.
         </p>
@@ -68,23 +75,21 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
     return (
       <div className="mx-auto max-w-2xl px-5 py-20">
         <p className="font-mono text-[14px] text-muted">{serial || 'No serial'}</p>
-        <h1 className="mt-2 font-display text-[36px] leading-tight">No certificate has this serial</h1>
+        <h1 className="mt-2 font-display text-[36px] leading-tight">Nothing was issued with this serial</h1>
         <p className="mt-4 text-[17px] leading-relaxed text-ink-2">
-          Check each character against the printed certificate — serials never use the letters I, L, O or U. If it still doesn’t match, the certificate was not issued through {site.name}.
+          Check each character against the printed serial — serials never use the letters I, L, O or U. If it still doesn’t match, it was not issued through {site.name}.
         </p>
         <VerifySearch className="mt-10" defaultValue={serial} />
       </div>
     );
   }
 
+  if (v.kind === 'visiting-card') return <ContactCardView v={v} />;
+  if (v.kind === 'invitation') return <InvitationView v={v} />;
+
   const noun = kindNoun(v.kind);
   const card = v.kind === 'id-card';
-  const tone =
-    v.status === 'valid'
-      ? { box: 'border-seal/30 bg-seal-soft', text: 'text-seal', title: stateTitle(v) }
-      : v.status === 'revoked'
-        ? { box: 'border-revoked/30 bg-revoked-soft', text: 'text-revoked', title: stateTitle(v) }
-        : { box: 'border-warn/30 bg-warn-soft', text: 'text-warn', title: stateTitle(v) };
+  const tone = toneFor(v.status);
 
   const url = `${site.url}/verify/${v.serial}`;
   // LinkedIn's "add a certification" form, filled in: the recipient only has to confirm it.
@@ -115,7 +120,7 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
       <div className={`flex items-start gap-4 rounded-xl border p-5 ${tone.box}`}>
         <SealMark size={44} className={`shrink-0 ${tone.text}`} />
         <div>
-          <h1 className={`font-display text-[28px] leading-tight ${tone.text}`}>{tone.title}</h1>
+          <h1 className={`font-display text-[28px] leading-tight ${tone.text}`}>{stateTitle(v)}</h1>
           <p className="mt-1 text-[15px] text-ink-2">
             {v.status === 'valid' && `Issued by ${v.issuer.name} on ${formatDate(v.issuedAt)}${v.expiresAt ? `, valid until ${formatDate(v.expiresAt)}` : ''}. The signed record matches.`}
             {v.status === 'expired' && v.expiresAt && `It was valid until ${formatDate(v.expiresAt)}. Issued by ${v.issuer.name} on ${formatDate(v.issuedAt)}; the signed record matches.`}
@@ -131,20 +136,9 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
         {v.fields.map((f) => (
           <Row key={f.label} label={f.label}>{f.value}</Row>
         ))}
-        <Row label="Issued by">
-          <span className="font-medium">{v.issuer.name}</span>
-          {v.issuer.verified ? (
-            <span className="ml-2 inline-flex items-center rounded-full bg-seal px-2.5 py-0.5 text-[12.5px] font-medium text-card">Verified organisation</span>
-          ) : (
-            <span className="ml-2 text-[13.5px] text-muted">{v.issuer.kind === 'organization' ? 'Organisation not verified' : 'Individual account'}</span>
-          )}
-          {v.issuer.domain && <span className="mt-0.5 block text-[14px] text-muted">Controls the domain {v.issuer.domain}</span>}
-        </Row>
+        <Row label="Issued by"><IssuerValue issuer={v.issuer} /></Row>
         <Row label="Issued on">{formatDate(v.issuedAt)}</Row>
-        <Row label="Record">
-          <span className="block text-[14px] text-ink-2">Digitally signed by {site.name} (key {v.keyId}).</span>
-          <span className="mt-1 block break-all font-mono text-[12px] text-muted">SHA-256 {v.contentHash}</span>
-        </Row>
+        <Row label="Record"><RecordValue v={v} /></Row>
       </dl>
 
       <p className="mt-6 text-[14px] leading-relaxed text-muted">
@@ -159,28 +153,7 @@ export default async function VerifyPage({ params }: PageProps<'/verify/[serial]
         </section>
       )}
 
-      <details className="mt-10 border-t border-rule pt-6">
-        <summary className="cursor-pointer text-[15px] font-medium text-ink-2">Report a problem with this {noun}</summary>
-        <ReportForm serial={v.serial} />
-      </details>
-
-      <div className="mt-12 border-t border-rule pt-8">
-        <h2 className="text-[15px] font-semibold">Check another certificate or ID card</h2>
-        <VerifySearch className="mt-3" />
-      </div>
-
-      {v.status !== 'unconfirmed' && (
-        <section aria-labelledby="issue-h" className="mt-12 rounded-xl border border-rule bg-card p-6">
-          <h2 id="issue-h" className="font-display text-[24px] leading-tight">{card ? 'Make ID cards people can check like this' : 'Issue certificates people can check like this'}</h2>
-          <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
-            Give every {card ? 'ID card' : 'certificate'} your organisation issues a page like this one, with a QR code that opens it. Free to start, with packages from {formatMoney(packages[0].price)} for bulk issuing.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={card ? '/id-card-maker' : '/'} className={btn.primary}>See how it works</Link>
-            <Link href="/pricing" className={btn.secondary}>Pricing</Link>
-          </div>
-        </section>
-      )}
+      <VerifyFooter v={v} />
     </div>
   );
 }

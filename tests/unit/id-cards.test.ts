@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CERTIFICATE_PRESETS, ID_CARD_PRESETS, PRESETS, blankIdCard, presetDesign } from '@/lib/presets';
+import { CERTIFICATE_PRESETS, ID_CARD_PRESETS, INVITATION_PRESETS, PRESETS, VISITING_CARD_PRESETS, blankIdCard, presetDesign } from '@/lib/presets';
 import { PAGE_SIZES, designKind, designSchema, isDynamic, kindNoun, photoFields, photoName, photoRef, type Design } from '@/lib/design';
 import { cleanValues, expiryLabel, expiryOf, isPublicField, isoDate, parseExpiry } from '@/lib/values';
 import { A4, cutMarks, sheetLayout, slot } from '@/components/editor/sheet';
@@ -30,10 +30,12 @@ describe('ID card designs', () => {
     expect(Math.abs(mm(PAGE_SIZES['card-landscape'].height) - 53.98)).toBeLessThan(0.05);
   });
 
-  it('are listed apart from the certificates, and every template is in one list or the other', () => {
+  it('are listed apart from the certificates, and every template is in exactly one kind’s list', () => {
     expect(ID_CARD_PRESETS.length).toBeGreaterThan(0);
     expect(CERTIFICATE_PRESETS.every((p) => designKind(p.design) === 'certificate')).toBe(true);
-    expect(CERTIFICATE_PRESETS.length + ID_CARD_PRESETS.length).toBe(PRESETS.length);
+    const lists = [CERTIFICATE_PRESETS, ID_CARD_PRESETS, VISITING_CARD_PRESETS, INVITATION_PRESETS];
+    expect(lists.reduce((n, l) => n + l.length, 0)).toBe(PRESETS.length);
+    expect(new Set(lists.flat().map((p) => p.slug)).size).toBe(PRESETS.length);
   });
 
   it('show their verification page the full name, and keep it out of search engines, by default', () => {

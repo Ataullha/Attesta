@@ -28,7 +28,10 @@ const included = [
 
 const faqs = [
   { q: 'Do credits expire?', a: 'No. Credits stay on your account until you use them.' },
-  { q: 'Do ID cards use credits too?', a: 'Yes, one credit per ID card, the same as a certificate. Your free monthly allowance covers ID cards as well.' },
+  {
+    q: 'Do ID cards, visiting cards and invitations use credits too?',
+    a: 'Yes, one credit each, the same as a certificate: one per ID card, one per person’s visiting card however many copies you print, and one per guest’s invitation. Your free monthly allowance covers them as well.',
+  },
   {
     q: 'Which certificates use a credit?',
     a: `Each registered certificate you issue uses one: your ${limits.freeMonthly} free certificates for the month first, then package credits. Certificates made without an account use none, but they are not registered, so their QR code does not confirm them.`,

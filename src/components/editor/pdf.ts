@@ -16,11 +16,11 @@ import {
   type PDFImage,
   type PDFPage,
 } from 'pdf-lib';
-import { designKind, isDynamic, kindNoun, photoRef, type Design, type DesignElement, type PhotoEl } from '@/lib/design';
+import { capitalised, designKind, isDynamic, kindNoun, photoRef, type Design, type DesignElement, type PhotoEl } from '@/lib/design';
 import { site } from '@/lib/site';
 import type { AssetStore, ImageRef } from './assets';
 import { SEAL_PATH, barcodeCanvas, drawText, ensureFonts, fitRect, photoRect, qrGeometry, qrModules, textFor, type RenderValues } from './renderer';
-import { cutMarks, sheetLayout, slot } from './sheet';
+import { cutMarks, sheetFor, slot } from './sheet';
 
 export type PdfJob = {
   design: Design;
@@ -31,10 +31,13 @@ export type PdfJob = {
 };
 
 /**
- * Raster resolution for text, in pixels per design pixel: 3 is about 288 dpi. Small pages such as
- * ID cards get 6, since their small type is read close up.
+ * Raster resolution for text, in pixels per design pixel: 3 is about 288 dpi. Cards get 6, since
+ * their small type is read close up, and invitations 4.
  */
-const scaleFor = (d: Design) => (Math.max(d.page.width, d.page.height) < 700 ? 6 : 3);
+function scaleFor(d: Design) {
+  const longest = Math.max(d.page.width, d.page.height);
+  return longest < 400 ? 6 : longest < 800 ? 4 : 3;
+}
 const PT = 0.75;
 
 type Raster = { png: Uint8Array; x: number; y: number; w: number; h: number };
@@ -256,7 +259,7 @@ export async function buildPdf(jobs: PdfJob[], assets: AssetStore, onProgress?: 
   doc.setCreator(site.name);
   doc.setProducer(site.name);
   const noun = kindNoun(designKind(jobs[0]?.design ?? {}));
-  doc.setTitle(jobs.length === 1 ? `${noun[0].toUpperCase()}${noun.slice(1)} ${jobs[0].serial}` : `${jobs.length} ${kindNoun(designKind(jobs[0].design), true)}`);
+  doc.setTitle(jobs.length === 1 ? `${capitalised(noun)} ${jobs[0].serial}` : `${jobs.length} ${kindNoun(designKind(jobs[0].design), true)}`);
   const writer = new PageWriter(doc, assets);
   const staticImages = new WeakMap<Design, Map<string, PDFImage>>();
   let helvetica: Awaited<ReturnType<PDFDocument['embedFont']>> | null = null;
@@ -305,9 +308,7 @@ export async function buildPdf(jobs: PdfJob[], assets: AssetStore, onProgress?: 
     if (job.watermark) {
       helvetica ??= await doc.embedFont(StandardFonts.Helvetica);
       const small = W * PT < 400;
-      const note = small
-        ? `Guest ${kindNoun(designKind(design))} made with ${site.name}. Not registered or verifiable.`
-        : `Guest ${kindNoun(designKind(design))} made with ${site.name}. It was not registered and cannot be verified.`;
+      const note = watermarkNote(design);
       // Small enough to fit across the page, which on an ID card is only 85.6 mm.
       let size = small ? 6 : 8;
       while (size > 3.5 && helvetica.widthOfTextAtSize(note, size) > W * PT - 8) size -= 0.25;
@@ -321,33 +322,44 @@ export async function buildPdf(jobs: PdfJob[], assets: AssetStore, onProgress?: 
   return doc.save({ useObjectStreams: true });
 }
 
-/** Whether a design is small enough to be printed several to a sheet (an ID card is). */
-export function printsOnSheets(design: Design) {
-  return !!sheetLayout(design.page.width * PT, design.page.height * PT);
+/** The footer note on a guest's copy, which was never registered. */
+export function watermarkNote(design: Design) {
+  const noun = kindNoun(designKind(design));
+  return design.page.width * PT < 400
+    ? `Guest ${noun} made with ${site.name}. Not registered or verifiable.`
+    : `Guest ${noun} made with ${site.name}. It was not registered and cannot be verified.`;
 }
 
 /**
- * The same documents laid out for an office printer: as many to an A4 sheet as fit (10 ID cards in
+ * The same documents laid out for an office printer: as many to an A4 sheet as fit (10 cards in
  * landscape, 9 in portrait), edge to edge, with cut marks in the margins. All jobs share one design.
+ * With `fill`, each person's card fills a sheet of its own, as visiting cards are printed: many of one.
  */
-export async function buildSheetPdf(jobs: PdfJob[], assets: AssetStore, onProgress?: (done: number, total: number) => void) {
+export async function buildSheetPdf(jobs: PdfJob[], assets: AssetStore, onProgress?: (done: number, total: number) => void, { fill = false } = {}) {
   const cards = await buildPdf(jobs, assets, onProgress);
   const design = jobs[0]?.design;
-  const layout = design && sheetLayout(design.page.width * PT, design.page.height * PT);
+  const layout = design && sheetFor(design);
   if (!layout) return cards;
   const doc = await PDFDocument.create();
   doc.setCreator(site.name);
   doc.setProducer(site.name);
   doc.setTitle(`${jobs.length} ${kindNoun(designKind(design), jobs.length !== 1)} for printing`);
   const embedded = await doc.embedPdf(cards, jobs.map((_, i) => i));
+  const newSheet = () => {
+    const sheet = doc.addPage([layout.paper.width, layout.paper.height]);
+    for (const [x1, y1, x2, y2] of cutMarks(layout)) sheet.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 0.3, color: rgb(0, 0, 0) });
+    return sheet;
+  };
   let sheet: PDFPage | null = null;
   embedded.forEach((card, i) => {
-    if (i % layout.perSheet === 0) {
-      sheet = doc.addPage([layout.paper.width, layout.paper.height]);
-      for (const [x1, y1, x2, y2] of cutMarks(layout)) sheet.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 0.3, color: rgb(0, 0, 0) });
+    // One embedded page drawn many times is stored once, so a sheet of copies costs no more than one card.
+    const copies = fill ? layout.perSheet : 1;
+    for (let c = 0; c < copies; c++) {
+      const n = fill ? c : i;
+      if (n % layout.perSheet === 0) sheet = newSheet();
+      const at = slot(layout, n);
+      sheet!.drawPage(card, { x: at.x, y: at.y, width: layout.cardW, height: layout.cardH });
     }
-    const at = slot(layout, i);
-    sheet!.drawPage(card, { x: at.x, y: at.y, width: layout.cardW, height: layout.cardH });
   });
   return doc.save({ useObjectStreams: true });
 }

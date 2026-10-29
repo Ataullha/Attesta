@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { placeholdersIn, type Design, type DesignElement } from '@/lib/design';
+import { capitalised, designKind, kindNoun, placeholdersIn, type Design, type DesignElement } from '@/lib/design';
 import type { AssetStore } from './assets';
 import { ensureFonts, renderPage, type RenderValues } from './renderer';
 import { elementLabel } from './elements';
@@ -175,7 +175,7 @@ export function Stage(props: {
       }}
     >
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_18px_44px_-20px_rgba(15,23,42,0.35)]" style={{ width: W * zoom, height: H * zoom }}>
-        <canvas ref={canvasRef} className="absolute inset-0 block" style={{ width: W * zoom, height: H * zoom }} aria-label={design.kind === 'id-card' ? 'ID card preview' : 'Certificate preview'} role="img" />
+        <canvas ref={canvasRef} className="absolute inset-0 block" style={{ width: W * zoom, height: H * zoom }} aria-label={`${capitalised(kindNoun(designKind(design)))} preview`} role="img" />
         <div className="absolute inset-0" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
           {design.elements.map((el) => {
             const selected = el.id === selectedId;

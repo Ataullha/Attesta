@@ -31,8 +31,8 @@ export function HeaderActions() {
   if (signedIn) {
     return (
       <>
-        <Link href="/create" className={btn.ghost + ' hidden sm:inline-flex'}>
-          New certificate
+        <Link href="/app/templates#new" className={btn.ghost + ' hidden sm:inline-flex'}>
+          Create new
         </Link>
         <Link href="/app" className={btn.primary}>
           Dashboard

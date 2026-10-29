@@ -25,12 +25,13 @@ export function elementLabel(el: DesignElement) {
 }
 
 /**
- * New elements are sized for a page of paper. On a small page, such as an ID card, they are scaled
- * down to suit it, though not so far that text cannot be read or a QR code scanned.
+ * New elements are sized for a page of A4 or Letter. On a smaller page, such as a card or an
+ * invitation, they are scaled down to suit it, though not so far that text cannot be read or a QR
+ * code scanned.
  */
 export function unitFor(d: Design) {
   const longest = Math.max(d.page.width, d.page.height);
-  return longest >= 700 ? 1 : Math.max(0.4, longest / 1123);
+  return longest >= 1000 ? 1 : Math.max(0.4, longest / 1123);
 }
 
 export function makeText(d: Design, overrides: Partial<TextEl> = {}): TextEl {

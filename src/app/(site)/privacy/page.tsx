@@ -25,9 +25,10 @@ export default function Privacy() {
       </ul>
       <h2>What is public</h2>
       <p>Each registered certificate has a verification page. It shows the issuer, the issue date, the fields the issuer marked as public, and the recipient’s name in the form the issuer chose (by default, first name and last initial). Email fields are never shown.</p>
+      <p>A visiting card’s page is a contact card: it shows the details the issuer chose to share on it, such as a phone number and an email address, and offers them to save. An invitation’s page shows the guest’s name and the details the host chose to share. Pages for visiting cards and invitations are kept out of search engines unless the issuer chooses otherwise.</p>
       <p>Recipients can ask for a verification page to be removed from search engines using the report form on that page.</p>
       <h2>CSV files and photos</h2>
-      <p>CSV files used for bulk issuing are read in your browser. We receive only the values needed to register each certificate or ID card.</p>
+      <p>CSV files used for bulk issuing are read in your browser. We receive only the values needed to register each certificate, card or invitation.</p>
       <p>Photos for ID cards are placed on the cards in your browser and never uploaded. We keep only each photo’s file name, so that a card can be matched to its photo again when you download it later.</p>
       <h2>Advertising</h2>
       <p>Public pages may show ads from Google AdSense, which may use cookies. Ads are never shown in the editor or your dashboard.</p>

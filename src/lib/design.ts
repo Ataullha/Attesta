@@ -23,8 +23,20 @@ export const FONT_IDS = Object.keys(FONTS) as [FontId, ...FontId[]];
 /* Page sizes (design units are CSS pixels at 96 dpi; 1px = 0.75pt)    */
 /* ------------------------------------------------------------------ */
 
-/** What a design is. It decides the wording around it (the verification page, file names) and how it prints. */
-export type DesignKind = 'certificate' | 'id-card';
+/**
+ * What a design is. It decides the wording around it (the page its QR code opens, file names) and
+ * how it prints.
+ */
+export type DesignKind = 'certificate' | 'id-card' | 'visiting-card' | 'invitation';
+export const DESIGN_KINDS = ['certificate', 'id-card', 'visiting-card', 'invitation'] as const satisfies readonly DesignKind[];
+
+/** How each kind is spoken of, and where it is explained. */
+export const KINDS = {
+  certificate: { noun: 'certificate', plural: 'certificates', article: 'a', holder: 'recipient', page: 'verification page', landing: '/certificate-maker' },
+  'id-card': { noun: 'ID card', plural: 'ID cards', article: 'an', holder: 'card holder', page: 'verification page', landing: '/id-card-maker' },
+  'visiting-card': { noun: 'visiting card', plural: 'visiting cards', article: 'a', holder: 'card holder', page: 'contact page', landing: '/visiting-card-maker' },
+  invitation: { noun: 'invitation', plural: 'invitations', article: 'an', holder: 'guest', page: 'invitation page', landing: '/invitation-card-maker' },
+} as const satisfies Record<DesignKind, { noun: string; plural: string; article: 'a' | 'an'; holder: string; page: string; landing: string }>;
 
 export const PAGE_SIZES = {
   'a4-landscape': { label: 'A4 landscape', width: 1123, height: 794, kind: 'certificate' },
@@ -34,6 +46,13 @@ export const PAGE_SIZES = {
   // The standard ID card (ISO/IEC 7810 ID-1, "CR80"): 85.6 × 54 mm, the size card printers take.
   'card-landscape': { label: 'ID card landscape (85.6 × 54 mm)', width: 323.5, height: 204, kind: 'id-card' },
   'card-portrait': { label: 'ID card portrait (54 × 85.6 mm)', width: 204, height: 323.5, kind: 'id-card' },
+  // The visiting card printed in Bangladesh and India (and the US business card): 3.5 × 2 inches.
+  'visiting-landscape': { label: 'Visiting card landscape (3.5 × 2 in)', width: 336, height: 192, kind: 'visiting-card' },
+  'visiting-portrait': { label: 'Visiting card portrait (2 × 3.5 in)', width: 192, height: 336, kind: 'visiting-card' },
+  'invitation-5x7': { label: 'Invitation 5 × 7 in, portrait', width: 480, height: 672, kind: 'invitation' },
+  'invitation-7x5': { label: 'Invitation 7 × 5 in, landscape', width: 672, height: 480, kind: 'invitation' },
+  'invitation-a5': { label: 'Invitation A5 (148 × 210 mm)', width: 559.4, height: 793.7, kind: 'invitation' },
+  'invitation-square': { label: 'Invitation square (6 × 6 in)', width: 576, height: 576, kind: 'invitation' },
 } as const satisfies Record<string, { label: string; width: number; height: number; kind: DesignKind }>;
 
 export type PageSizeId = keyof typeof PAGE_SIZES;
@@ -57,6 +76,9 @@ export const fieldSchema = z.object({
   required: z.boolean(),
   public: z.boolean(),
   sample: z.string().max(300),
+  // The same for everyone (a venue, a company address): `sample` is then the value, used for anyone
+  // not given one of their own. Absent on fields saved before this existed, which vary per person.
+  fixed: z.boolean().optional(),
 });
 
 const base = {
@@ -145,10 +167,11 @@ export const designSchema = z
   .object({
     version: z.literal(1),
     // Absent on designs saved before ID cards existed, which are all certificates.
-    kind: z.enum(['certificate', 'id-card']).optional(),
+    kind: z.enum(DESIGN_KINDS).optional(),
     page: z.object({
-      width: num(200, 4000),
-      height: num(200, 4000),
+      // A portrait visiting card is 192 px (2 inches) wide.
+      width: num(150, 4000),
+      height: num(150, 4000),
       background: z.object({ color: hex, ...imageRef, fit: z.enum(['stretch', 'cover', 'contain']) }),
     }),
     fields: z.array(fieldSchema).min(1).max(30),
@@ -205,9 +228,24 @@ export function designKind(d: Pick<Design, 'kind'>): DesignKind {
   return d.kind ?? 'certificate';
 }
 
-/** "certificate" or "ID card", for a sentence; `plural` for "certificates" or "ID cards". */
+/** "certificate", "ID card" and so on, for a sentence; `plural` for "certificates", "ID cards". */
 export function kindNoun(kind: DesignKind, plural = false) {
-  return kind === 'id-card' ? (plural ? 'ID cards' : 'ID card') : plural ? 'certificates' : 'certificate';
+  return plural ? KINDS[kind].plural : KINDS[kind].noun;
+}
+
+/** "a certificate", "an ID card", "an invitation". */
+export function withArticle(kind: DesignKind) {
+  return `${KINDS[kind].article} ${KINDS[kind].noun}`;
+}
+
+/** The first letter made a capital: "ID card", "Visiting card", "Invitation". */
+export function capitalised(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Cards of a standard size (ID and visiting cards), which keep their size and print several to a sheet. */
+export function isCard(kind: DesignKind) {
+  return kind === 'id-card' || kind === 'visiting-card';
 }
 
 /** The fields filled with each recipient's photo. */
@@ -290,7 +328,7 @@ export function canonicalJson(value: unknown): string {
  * its accent stays whole, where `charAt(0)` would cut it. Segmenter is checked for at call time
  * because this module also loads in browsers that predate it.
  */
-function firstLetter(text: string) {
+export function firstLetter(text: string) {
   if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
     for (const { segment } of new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)) return segment;
   }

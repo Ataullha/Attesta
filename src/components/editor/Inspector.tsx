@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { FONTS, FONT_IDS, designKind, kindNoun, photoFields, type Design, type DesignElement } from '@/lib/design';
+import { FONTS, FONT_IDS, KINDS, designKind, kindNoun, photoFields, type Design, type DesignElement } from '@/lib/design';
 import { btn, field } from '@/components/ui/styles';
 import { ELEMENT_LABELS } from './elements';
 
@@ -257,7 +257,10 @@ export function Inspector({ el, design, live, commit, set, onAction, onUpload, u
 
       {el.type === 'qr' && (
         <Section title="QR code">
-          <p className="text-[13px] leading-snug text-ink-2">Each {kindNoun(designKind(design))} gets its own code, opening its verification page.</p>
+          <p className="text-[13px] leading-snug text-ink-2">
+            Each {kindNoun(designKind(design))} gets its own code, opening its {KINDS[designKind(design)].page}
+            {designKind(design) === 'visiting-card' ? ', where a phone can save the contact.' : '.'}
+          </p>
           <Color label="Colour" value={el.color} onChange={(v) => set({ color: v } as Partial<DesignElement>)} />
           <Toggle label="White square behind the code" hint="Keep this on for dark or busy backgrounds so phones can read it." checked={!!el.background} onChange={(v) => set({ background: v ? '#FFFFFF' : null } as Partial<DesignElement>)} />
         </Section>

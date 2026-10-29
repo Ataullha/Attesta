@@ -46,6 +46,10 @@ const faqs = [
     a: 'By default, the first name and last initial, the issuer, the date and the fields you mark as public. You can choose to show the full name or hide it entirely.',
   },
   {
+    q: 'Can I make ID cards, visiting cards or invitations as well?',
+    a: 'Yes. The same editor makes ID cards with each person’s photo, visiting cards whose QR code saves the contact to a phone, and wedding or event invitations with each guest’s name, one at a time or for a whole list from a spreadsheet.',
+  },
+  {
     q: 'Does it work in Bangla?',
     a: 'Yes. Certificates render in your browser, so Bangla conjuncts display correctly, and three Bangla typefaces are included.',
   },
@@ -88,6 +92,33 @@ const facts = [
   ['Bangla that renders properly', 'Conjuncts like ক্ষ and ন্দ্র stay intact, with three Bangla typefaces built in.'],
   [`Up to ${limits.bulkMaxRows.toLocaleString()} at a time`, 'Issue a whole cohort from a CSV, with every row checked before anything is issued.'],
   ['Private by default', 'Verification pages show a first name and last initial unless you choose otherwise.'],
+];
+
+const products = [
+  {
+    href: '/id-card-maker',
+    slug: 'staff-id-card',
+    label: 'Staff ID card template with a photo and a QR code',
+    title: 'ID cards',
+    body: 'Member, staff and student cards with each person’s photo, matched by file name. Ten to an A4 sheet with cut marks, and a QR code that shows whether a card is valid, expired or revoked.',
+    cta: 'Make ID cards',
+  },
+  {
+    href: '/visiting-card-maker',
+    slug: 'corporate-visiting-card',
+    label: 'Visiting card template with a QR code that saves the contact',
+    title: 'Visiting cards',
+    body: 'Cards for your whole team from one spreadsheet, printed a full A4 sheet per person. The QR code on each card saves the contact to a phone.',
+    cta: 'Make visiting cards',
+  },
+  {
+    href: '/invitation-card-maker',
+    slug: 'wedding-invitation',
+    label: 'Wedding invitation template with the guest’s name at the top',
+    title: 'Invitations',
+    body: 'Wedding and event invitations with every guest’s name on their own card, to print, or to send as images on WhatsApp or Messenger.',
+    cta: 'Make invitations',
+  },
 ];
 
 const audiences = [
@@ -315,32 +346,27 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-t border-rule" aria-labelledby="cards-h">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 lg:grid-cols-[1fr_1.05fr]">
-          <div>
-            <h2 id="cards-h" className="font-display text-[32px] leading-tight">ID cards too, photos and all</h2>
-            <p className="mt-4 max-w-[54ch] text-[16.5px] leading-relaxed text-ink-2">
-              New members, staff or students? Make an ID card for each of them from your list and their photos, matched by file name. Print them
-              ten to an A4 sheet with cut marks, or on a card printer. Each card’s QR code shows whether it is valid, expired or revoked.
-            </p>
-            <ul className="mt-5 space-y-1.5 text-[15px] text-ink-2">
-              <li className="flex gap-2"><Tick />Photos never leave your computer</li>
-              <li className="flex gap-2"><Tick />Templates for clubs, staff and students, in English and Bangla</li>
-              <li className="flex gap-2"><Tick />Or your own card design as the background</li>
-            </ul>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/id-card-maker" className={btn.primary}>Make ID cards</Link>
-              <Link href="/templates#id-cards" className={btn.secondary}>ID card templates</Link>
-            </div>
-          </div>
-          <div className="grid grid-cols-[0.63fr_1fr] items-center gap-4">
-            <div className="overflow-hidden rounded-lg border border-rule-2 bg-card shadow-[0_20px_44px_-28px_rgba(15,23,42,0.5)]">
-              <TemplatePreview slug="student-id-card" label="Student ID card template" sizes="(min-width: 1024px) 210px, 38vw" />
-            </div>
-            <div className="overflow-hidden rounded-lg border border-rule-2 bg-card shadow-[0_20px_44px_-28px_rgba(15,23,42,0.5)]">
-              <TemplatePreview slug="bangla-member-card" label="Bangla membership card template" sizes="(min-width: 1024px) 330px, 60vw" />
-            </div>
-          </div>
+      <section className="border-t border-rule" aria-labelledby="more-h">
+        <div className="mx-auto max-w-6xl px-5 py-20">
+          <h2 id="more-h" className="max-w-[26ch] font-display text-[32px] leading-tight">ID cards, visiting cards and invitations too</h2>
+          <p className="mt-4 max-w-[62ch] text-[16.5px] leading-relaxed text-ink-2">
+            The same editor and the same bulk issuing from a spreadsheet, for everything else your organisation hands out by the hundred. Each comes
+            with templates in English and Bangla, or takes your own design.
+          </p>
+          <ul className="mt-10 grid gap-6 md:grid-cols-3">
+            {products.map((p) => (
+              <li key={p.href}>
+                <Link href={p.href} className="group flex h-full flex-col rounded-xl border border-rule bg-card p-4 transition-colors hover:border-accent">
+                  <div className="rounded-lg bg-paper p-1.5">
+                    <TemplatePreview framed slug={p.slug} label={p.label} sizes="(min-width: 768px) 360px, 100vw" />
+                  </div>
+                  <h3 className="mt-4 font-display text-[22px] leading-tight">{p.title}</h3>
+                  <p className="mt-2 flex-1 text-[15px] leading-relaxed text-ink-2">{p.body}</p>
+                  <span className="mt-4 text-[15px] font-medium text-accent underline underline-offset-4 group-hover:text-accent-dark">{p.cta}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 

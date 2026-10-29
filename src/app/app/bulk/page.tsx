@@ -25,14 +25,14 @@ export default async function BulkPage({ searchParams }: PageProps<'/app/bulk'>)
         <section aria-labelledby="bulk-h" className={`${card} max-w-3xl p-6 sm:p-8`}>
           <h2 id="bulk-h" className="font-display text-[24px] leading-tight">Issue to a whole group at once</h2>
           <p className="mt-2 max-w-[62ch] text-[15.5px] leading-relaxed text-ink-2">
-            Bulk issuing comes with a package. Upload a spreadsheet with one row per person, and every certificate or ID card gets its own serial, QR
-            code and verification page. ID cards can take everyone’s photo, matched by file name.
+            Bulk issuing comes with a package. Upload a spreadsheet with one row per person, and every certificate, card or invitation gets its own
+            serial, QR code and page. ID cards can take everyone’s photo, matched by file name.
           </p>
           <ol className="mt-6 grid gap-4 text-[14.5px] leading-snug text-ink-2 sm:grid-cols-3">
             {[
               'Upload a CSV file, up to ' + limits.bulkMaxRows.toLocaleString() + ' rows. Excel and Google Sheets both save one.',
               'Match its columns to your template’s fields. Gaps and duplicates are flagged before anything is issued.',
-              'Download one PDF, a ZIP with a file per person, or ID cards on A4 sheets ready to print and cut.',
+              'Download one PDF, a ZIP with a file or an image per person, or cards on A4 sheets ready to print and cut.',
             ].map((step, i) => (
               <li key={step} className="flex gap-3">
                 <span aria-hidden="true" className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-rule-2 font-mono text-[12px] text-accent">{i + 1}</span>

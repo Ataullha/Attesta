@@ -5,10 +5,9 @@ import { Shell } from '@/components/app/Shell';
 export const metadata: Metadata = { title: 'Dashboard', robots: { index: false, follow: false } };
 
 const nav = [
-  { href: '/app', label: 'Certificates' },
-  { href: '/create', label: 'New certificate' },
+  { href: '/app', label: 'Dashboard' },
+  { href: '/app/templates', label: 'Create and templates' },
   { href: '/app/bulk', label: 'Bulk from CSV' },
-  { href: '/app/templates', label: 'Templates' },
   { href: '/app/library', label: 'Signatures and images' },
   { href: '/app/organization', label: 'Organisation' },
   { href: '/app/billing', label: 'Packages and billing' },
