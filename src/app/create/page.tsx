@@ -3,15 +3,16 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { getUser } from '@/lib/auth/session';
 import { designSchema, type Design } from '@/lib/design';
-import { blankIdCard, getPreset, presetDesign } from '@/lib/presets';
+import { blankIdCard, blankInvitation, blankVisitingCard, getPreset, presetDesign } from '@/lib/presets';
 import { usageThisMonth } from '@/lib/issue';
 import { isUuid } from '@/lib/validate';
 import { limits } from '@/lib/site';
 import { Editor, type EditorUser } from '@/components/editor/Editor';
 
 export const metadata: Metadata = {
-  title: 'Certificate and ID card editor',
-  description: 'Free online certificate and ID card editor: drag and resize every field, add custom fields, photos, a signature, QR code and barcode, or use your own design as the background.',
+  title: 'Certificate, card and invitation editor',
+  description:
+    'Free online editor for certificates, ID cards, visiting cards and invitations: drag and resize every field, add custom fields, photos, a signature, QR code and barcode, or use your own design as the background.',
   alternates: { canonical: '/create' },
 };
 
@@ -30,6 +31,12 @@ export default async function CreatePage({ searchParams }: PageProps<'/create'>)
   } else if (presetSlug === 'blank-id-card') {
     design = blankIdCard();
     name = 'Untitled ID card';
+  } else if (presetSlug === 'blank-visiting-card') {
+    design = blankVisitingCard();
+    name = 'Untitled visiting card';
+  } else if (presetSlug === 'blank-invitation') {
+    design = blankInvitation();
+    name = 'Untitled invitation';
   }
 
   if (user && templateParam && isUuid(templateParam)) {

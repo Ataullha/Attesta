@@ -1,10 +1,12 @@
 import 'server-only';
 import { and, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
 import { schema } from '@/lib/db';
+import type { DesignKind } from './design';
 
-/** What a batch's design is (certificate or ID card) and whether it has photos, read from its stored design. */
+/** What a batch's design is (a certificate, an ID card…) and whether it has photos, read from its stored design. */
 export const batchKind = {
-  card: sql<boolean>`coalesce(${schema.batches.design}->>'kind' = 'id-card', false)`,
+  // Designs are checked against the schema before they are stored, so the kind is always a known one.
+  kind: sql<DesignKind>`coalesce(${schema.batches.design}->>'kind', 'certificate')`,
   photos: sql<boolean>`coalesce((${schema.batches.design}->'fields') @> '[{"type":"photo"}]'::jsonb, false)`,
 };
 

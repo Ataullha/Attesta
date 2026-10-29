@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import type { DesignKind } from '@/lib/design';
 import { useDialogs } from '@/components/ui/Dialogs';
 import { btn, field } from '@/components/ui/styles';
 import { postJson, useCopy } from './client-utils';
@@ -37,13 +38,22 @@ export function ResendVerification() {
   );
 }
 
-/** The PDF builder and what goes with it, loaded only when a download is asked for. */
+/** The PDF and image builders and what goes with them, loaded only when a download is asked for. */
 function loadPdfTools() {
-  return Promise.all([import('@/components/editor/pdf'), import('@/components/editor/assets'), import('@/lib/design'), import('@/components/editor/photo-files'), import('@/components/editor/fonts')]);
+  return Promise.all([
+    import('@/components/editor/pdf'),
+    import('@/components/editor/assets'),
+    import('@/lib/design'),
+    import('@/components/editor/photo-files'),
+    import('@/components/editor/images'),
+    import('@/components/editor/fonts'),
+  ]);
 }
 
-async function renderAndDownload(serial: string, photo?: File) {
-  const [{ buildPdf, downloadBytes, safeFilename }, { AssetStore, photoSide }, { photoFields }] = await loadPdfTools();
+type Format = 'pdf' | 'jpg';
+
+async function renderAndDownload(serial: string, format: Format, photo?: File) {
+  const [{ buildPdf, downloadBytes, safeFilename }, { AssetStore, photoSide }, { photoFields }, , { downloadImages }] = await loadPdfTools();
   const res = await fetch(`/api/certificates/${serial}/render`);
   const j = await res.json();
   if (!res.ok) throw new Error(j.error ?? 'Could not load the certificate.');
@@ -51,8 +61,9 @@ async function renderAndDownload(serial: string, photo?: File) {
   const values: Record<string, string> = { ...j.values };
   // The photo was never stored, so the one chosen now is put where the card names its photo.
   if (photo) for (const f of photoFields(j.design)) assets.addPhoto((values[f.key] ||= photo.name), photo, photoSide(j.design));
-  const pdf = await buildPdf([{ design: j.design, values, serial: j.serial, verifyUrl: j.verifyUrl }], assets);
-  downloadBytes(pdf, `${safeFilename(j.values.recipient_name ?? 'certificate')}-${serial}.pdf`);
+  const job = { design: j.design, values, serial: j.serial, verifyUrl: j.verifyUrl };
+  if (format === 'jpg') await downloadImages([job], assets, safeFilename(j.values.recipient_name ?? 'image'));
+  else downloadBytes(await buildPdf([job], assets), `${safeFilename(j.values.recipient_name ?? 'certificate')}-${serial}.pdf`);
 }
 
 /** "Choose a photo" for a document whose photo is not kept, as a button that opens the file picker. */
@@ -78,30 +89,36 @@ function PhotoButton({ multiple = false, disabled, onFiles, children }: { multip
 
 export function CertificateActions({ serial, verifyUrl, revoked, photo = false }: { serial: string; verifyUrl: string; revoked: boolean; photo?: boolean }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [askPhoto, setAskPhoto] = useState(false);
+  const [busy, setBusy] = useState<Format | null>(null);
+  // Which download is waiting for this person's photo to be chosen again.
+  const [askPhoto, setAskPhoto] = useState<Format | null>(null);
   const [revoking, setRevoking] = useState(false);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [copied, copy] = useCopy();
 
-  async function download(file?: File) {
-    setBusy(true);
+  async function download(format: Format, file?: File) {
+    setBusy(format);
     setError(null);
     try {
-      await renderAndDownload(serial, file);
-      setAskPhoto(false);
+      await renderAndDownload(serial, format, file);
+      setAskPhoto(null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
+  const ask = (format: Format) => (photo ? setAskPhoto((v) => (v === format ? null : format)) : download(format));
+
   return (
     <div className="flex flex-wrap items-center justify-start gap-1 md:justify-end">
-      <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={busy} aria-expanded={photo ? askPhoto : undefined} onClick={() => (photo ? setAskPhoto((v) => !v) : download())}>
-        {busy ? 'Building…' : 'PDF'}
+      <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={!!busy} aria-expanded={photo ? askPhoto === 'pdf' : undefined} onClick={() => ask('pdf')}>
+        {busy === 'pdf' ? 'Building…' : 'PDF'}
+      </button>
+      <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={!!busy} aria-expanded={photo ? askPhoto === 'jpg' : undefined} onClick={() => ask('jpg')}>
+        {busy === 'jpg' ? 'Building…' : 'Image'}
       </button>
       <button type="button" className={btn.small + ' hover:bg-rule/60'} onClick={() => copy(verifyUrl)}>
         {copied === 'copied' ? 'Copied' : copied === 'failed' ? 'Could not copy' : 'Copy link'}
@@ -113,8 +130,8 @@ export function CertificateActions({ serial, verifyUrl, revoked, photo = false }
       {askPhoto && (
         <div className="mt-2 flex w-full flex-wrap items-center gap-2 text-[12.5px] text-ink-2 md:justify-end">
           <span>Photos aren’t kept, so add this person’s again:</span>
-          <PhotoButton disabled={busy} onFiles={([f]) => download(f)}>Choose photo</PhotoButton>
-          <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={busy} onClick={() => download()}>Without photo</button>
+          <PhotoButton disabled={!!busy} onFiles={([f]) => download(askPhoto, f)}>Choose photo</PhotoButton>
+          <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={!!busy} onClick={() => download(askPhoto)}>Without photo</button>
         </div>
       )}
       {revoking && (
@@ -136,21 +153,31 @@ export function CertificateActions({ serial, verifyUrl, revoked, photo = false }
   );
 }
 
+type Layout = 'copies' | 'sheets' | 'cards' | 'pdf' | 'images';
+
+/** The ways a batch of each kind can come: cards on A4 sheets or at card size, documents as PDFs, anything as images. */
+const LAYOUTS: Record<DesignKind, [Layout, string][]> = {
+  certificate: [['pdf', 'PDF'], ['images', 'Images (JPG)']],
+  'id-card': [['sheets', 'A4 sheets with cut marks'], ['cards', 'Card size'], ['images', 'Images (JPG)']],
+  'visiting-card': [['copies', 'A4, a full sheet per person'], ['sheets', 'A4, one card each'], ['cards', 'Card size'], ['images', 'Images (JPG)']],
+  invitation: [['pdf', 'PDF'], ['images', 'Images (JPG)']],
+};
+
 /**
- * Downloads a whole batch again. ID cards can come as A4 sheets with cut marks or at card size, and
- * since photos are never kept, a batch with photos asks for them again (files or a ZIP), matched by
- * the file names its rows recorded.
+ * Downloads a whole batch again, in any of its kind's layouts. Since photos are never kept, a batch
+ * with photos asks for them again (files or a ZIP), matched by the file names its rows recorded.
  */
-export function BatchDownload({ batchId, card = false, photos = false }: { batchId: string; card?: boolean; photos?: boolean }) {
+export function BatchDownload({ batchId, kind, photos = false }: { batchId: string; kind: DesignKind; photos?: boolean }) {
   const { toast } = useDialogs();
   const [state, setState] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [layout, setLayout] = useState<'sheets' | 'cards'>('sheets');
+  const layouts = LAYOUTS[kind];
+  const [layout, setLayout] = useState<Layout>(layouts[0][0]);
 
   async function download(files: File[] = []) {
     try {
       setState('Loading…');
-      const [{ buildPdf, buildSheetPdf, downloadBytes, safeFilename }, { AssetStore, photoSide }, { photoFields, photoName }, { readPhotoFiles }] = await loadPdfTools();
+      const [{ buildPdf, buildSheetPdf, downloadBytes, safeFilename }, { AssetStore, photoSide }, { photoFields, photoName }, { readPhotoFiles }, { downloadImages }] = await loadPdfTools();
       const res = await fetch(`/api/batches/${batchId}`);
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? 'Could not load the batch.');
@@ -165,21 +192,26 @@ export function BatchDownload({ batchId, card = false, photos = false }: { batch
         const keys = photoFields(j.design).map((f) => f.key);
         matched = jobs.filter((job) => keys.some((k) => job.values[k] && names.has(photoName(job.values[k])))).length;
       }
-      const sheets = card && layout === 'sheets';
-      const build = sheets ? buildSheetPdf : buildPdf;
-      // About 250 pages a file; for sheets, a whole number of sheets of 9 or of 10.
-      const per = sheets ? 270 : 250;
-      const base = `${safeFilename(j.name)}${sheets ? '-A4' : ''}`;
-      const parts: Uint8Array[] = [];
-      for (let s = 0; s < jobs.length; s += per) {
-        parts.push(await build(jobs.slice(s, s + per), assets, (d) => setState(`${s + d}/${jobs.length}`)));
-      }
-      if (parts.length === 1) downloadBytes(parts[0], `${base}.pdf`);
-      else {
-        const JSZip = (await import('jszip')).default;
-        const zip = new JSZip();
-        parts.forEach((p, i) => zip.file(`${base}-part-${i + 1}.pdf`, p));
-        downloadBytes(await zip.generateAsync({ type: 'blob', compression: 'STORE' }), `${safeFilename(j.name)}.zip`, 'application/zip');
+      if (layout === 'images') {
+        await downloadImages(jobs, assets, safeFilename(j.name), { onProgress: (d, t) => setState(`${d}/${t}`) });
+      } else {
+        const sheets = layout === 'sheets' || layout === 'copies';
+        // About 250 pages a file; for shared sheets, a whole number of sheets of 9 or of 10.
+        const per = layout === 'sheets' ? 270 : 250;
+        const base = `${safeFilename(j.name)}${sheets ? '-A4' : ''}`;
+        const parts: Uint8Array[] = [];
+        for (let s = 0; s < jobs.length; s += per) {
+          const part = jobs.slice(s, s + per);
+          const progress = (d: number) => setState(`${s + d}/${jobs.length}`);
+          parts.push(sheets ? await buildSheetPdf(part, assets, progress, { fill: layout === 'copies' }) : await buildPdf(part, assets, progress));
+        }
+        if (parts.length === 1) downloadBytes(parts[0], `${base}.pdf`);
+        else {
+          const JSZip = (await import('jszip')).default;
+          const zip = new JSZip();
+          parts.forEach((p, i) => zip.file(`${base}-part-${i + 1}.pdf`, p));
+          downloadBytes(await zip.generateAsync({ type: 'blob', compression: 'STORE' }), `${safeFilename(j.name)}.zip`, 'application/zip');
+        }
       }
       if (files.length && matched < jobs.length) toast(`${jobs.length - matched} of ${jobs.length} had no matching photo and were built without one.`, 'error');
       setOpen(false);
@@ -190,13 +222,6 @@ export function BatchDownload({ batchId, card = false, photos = false }: { batch
     }
   }
 
-  if (!card && !photos) {
-    return (
-      <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={!!state} onClick={() => download()}>
-        {state ?? 'Download all'}
-      </button>
-    );
-  }
   return (
     <>
       <button type="button" className={btn.small + ' hover:bg-rule/60'} disabled={!!state} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
@@ -204,19 +229,15 @@ export function BatchDownload({ batchId, card = false, photos = false }: { batch
       </button>
       {open && (
         <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-ink-2">
-          {card && (
-            <fieldset className="flex flex-wrap gap-x-4 gap-y-1">
-              <legend className="sr-only">Layout</legend>
-              <label className="flex items-center gap-1.5">
-                <input type="radio" name={`layout-${batchId}`} className="accent-accent" checked={layout === 'sheets'} onChange={() => setLayout('sheets')} />
-                A4 sheets with cut marks
+          <fieldset className="flex flex-wrap gap-x-4 gap-y-1">
+            <legend className="sr-only">Layout</legend>
+            {layouts.map(([id, label]) => (
+              <label key={id} className="flex items-center gap-1.5">
+                <input type="radio" name={`layout-${batchId}`} className="accent-accent" checked={layout === id} onChange={() => setLayout(id)} />
+                {label}
               </label>
-              <label className="flex items-center gap-1.5">
-                <input type="radio" name={`layout-${batchId}`} className="accent-accent" checked={layout === 'cards'} onChange={() => setLayout('cards')} />
-                Card size
-              </label>
-            </fieldset>
-          )}
+            ))}
+          </fieldset>
           {photos ? (
             <span className="flex flex-wrap items-center gap-2">
               <span>Photos aren’t kept, so add them again:</span>

@@ -8,6 +8,7 @@ import { btn, card } from '@/components/ui/styles';
 import { PageTitle } from '@/components/app/Shell';
 import { BatchDownload } from '@/components/app/Actions';
 import { batchKind } from '@/lib/certificates';
+import { kindNoun } from '@/lib/design';
 
 export const metadata: Metadata = { title: 'Bulk batches' };
 
@@ -36,7 +37,7 @@ export default async function BatchesPage({ searchParams }: PageProps<'/app/batc
         <Link href="/app/bulk" className={btn.primary}>New bulk batch</Link>
       </PageTitle>
       <p className="-mt-4 mb-8 max-w-[62ch] text-[15.5px] text-ink-2">
-        Every batch you have issued from a CSV file. Download the certificates or ID cards again as PDFs at any time, or export the list as a spreadsheet.
+        Every batch you have issued from a CSV file. Download it again as PDFs or images at any time, or export the list as a spreadsheet.
       </p>
 
       {batches.length === 0 ? (
@@ -51,11 +52,11 @@ export default async function BatchesPage({ searchParams }: PageProps<'/app/batc
               <span className="min-w-0">
                 <span className="block break-words font-medium">{b.name}</span>
                 <span className="text-[13px] text-muted">
-                  {b.count.toLocaleString()} {b.card ? (b.count === 1 ? 'ID card' : 'ID cards') : b.count === 1 ? 'certificate' : 'certificates'} · {formatDate(b.createdAt)}
+                  {b.count.toLocaleString()} {kindNoun(b.kind, b.count !== 1)} · {formatDate(b.createdAt)}
                 </span>
               </span>
               <span className="flex flex-wrap items-center justify-end gap-1">
-                <BatchDownload batchId={b.id} card={b.card} photos={b.photos} />
+                <BatchDownload batchId={b.id} kind={b.kind} photos={b.photos} />
                 <a href={`/api/certificates/export?batch=${b.id}`} download className={btn.small + ' hover:bg-rule/60'}>
                   Export CSV
                 </a>

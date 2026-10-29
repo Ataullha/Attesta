@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { designKind, kindNoun, type Design } from '@/lib/design';
+import { KINDS, capitalised, designKind, kindNoun, type Design, type Field } from '@/lib/design';
 import { useCopy } from '@/components/app/client-utils';
 import { btn, field } from '@/components/ui/styles';
 
@@ -15,8 +15,13 @@ type Props = {
   onValue: (key: string, v: string) => void;
   /** A photo file chosen for a photo field. */
   onPhoto: (key: string, file: File) => void;
+  /** A value that is the same on every document, changed in the design itself. */
+  onFixed: (key: string, v: string) => void;
   /** Downloads what was just issued again, laid out on an A4 sheet for printing. */
   onSheet?: () => Promise<void>;
+  sheetLabel: string;
+  /** Downloads what was just issued again as an image. */
+  onImage?: () => Promise<void>;
   onSettings: (patch: Partial<Design['settings']>) => void;
   onIssue: () => void;
   busy: boolean;
@@ -30,11 +35,47 @@ type Props = {
   onAccount: (path: '/login' | '/register') => void;
 };
 
-export function IssuePanel({ design, values, onValue, onPhoto, onSheet, onSettings, onIssue, busy, progress, result, error, signedIn, quotaNote, templateId, onAccount }: Props) {
+/** A button that runs a download and says so while it is being built. */
+function DownloadAgain({ onClick, children }: { onClick: () => Promise<void>; children: React.ReactNode }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      className="mt-1 block text-left text-[12.5px] font-medium text-seal underline underline-offset-2"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await onClick();
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? 'Building…' : children}
+    </button>
+  );
+}
+
+function FieldInput({ f, value, onChange, placeholder }: { f: Field; value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <label className="block">
+      <span className={field.label}>
+        {f.label}
+        {f.required && <span className="text-revoked"> *</span>}
+      </span>
+      <input className={field.input} type={f.type === 'email' ? 'email' : 'text'} value={value} maxLength={300} required={f.required && !f.fixed} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
+export function IssuePanel({ design, values, onValue, onPhoto, onFixed, onSheet, sheetLabel, onImage, onSettings, onIssue, busy, progress, result, error, signedIn, quotaNote, templateId, onAccount }: Props) {
   const [copied, copy] = useCopy();
-  const [sheetBusy, setSheetBusy] = useState(false);
   const kind = designKind(design);
   const noun = kindNoun(kind);
+  const { holder, page } = KINDS[kind];
+  const fixed = design.fields.filter((f) => f.fixed && f.type !== 'photo');
+  const own = design.fields.filter((f) => !(f.fixed && f.type !== 'photo'));
   return (
     <div className="text-[14px]">
       <div className="border-b border-rule px-4 py-3">
@@ -48,7 +89,17 @@ export function IssuePanel({ design, values, onValue, onPhoto, onSheet, onSettin
           onIssue();
         }}
       >
-        {design.fields.map((f) =>
+        {fixed.length > 0 && (
+          <fieldset className="space-y-3 rounded-lg border border-rule bg-paper/60 p-3">
+            <legend className="px-1 text-[12.5px] text-ink-2">Same on every {noun}</legend>
+            {fixed.map((f) => (
+              <FieldInput key={f.key} f={f} value={f.sample} placeholder={f.label} onChange={(v) => onFixed(f.key, v)} />
+            ))}
+            <p className="text-[12px] leading-snug text-muted">Saved with the design, so every {noun} you issue from it, one by one or from a CSV, shows these.</p>
+          </fieldset>
+        )}
+        {fixed.length > 0 && own.length > 0 && <h3 className="pt-1 text-[12.5px] font-medium text-ink-2">For this {holder}</h3>}
+        {own.map((f) =>
           f.type === 'photo' ? (
             <div key={f.key}>
               <span className={field.label} id={`${f.key}-label`}>
@@ -72,29 +123,21 @@ export function IssuePanel({ design, values, onValue, onPhoto, onSheet, onSettin
               <span className={`${field.hint} block`}>{values[f.key] ? `${values[f.key]} · ` : ''}The photo stays on this device; it is never uploaded.</span>
             </div>
           ) : (
-            <label key={f.key} className="block">
-              <span className={field.label}>
-                {f.label}
-                {f.required && <span className="text-revoked"> *</span>}
-              </span>
-              <input
-                className={field.input}
-                type={f.type === 'email' ? 'email' : 'text'}
-                value={values[f.key] ?? ''}
-                maxLength={300}
-                required={f.required}
-                placeholder={f.type === 'date' ? 'Leave empty for today' : f.type === 'expiry' ? 'e.g. 31 December 2026' : f.sample || ''}
-                onChange={(e) => onValue(f.key, e.target.value)}
-              />
-            </label>
+            <FieldInput
+              key={f.key}
+              f={f}
+              value={values[f.key] ?? ''}
+              placeholder={f.type === 'date' ? 'Leave empty for today' : f.type === 'expiry' ? 'e.g. 31 December 2026' : f.sample || ''}
+              onChange={(v) => onValue(f.key, v)}
+            />
           ),
         )}
 
         {signedIn && (
           <fieldset className="space-y-2.5 rounded-lg border border-rule bg-paper/60 p-3">
-            <legend className="px-1 text-[12.5px] text-ink-2">Verification page</legend>
+            <legend className="px-1 text-[12.5px] text-ink-2">{capitalised(page)}</legend>
             <label className="block">
-              <span className="mb-1 block text-[12px] text-muted">Show the {kind === 'id-card' ? 'card holder' : 'recipient'}’s name as</span>
+              <span className="mb-1 block text-[12px] text-muted">Show the {holder}’s name as</span>
               <select className={field.small} value={design.settings.nameDisplay} onChange={(e) => onSettings({ nameDisplay: e.target.value as Design['settings']['nameDisplay'] })}>
                 <option value="partial">First name and last initial</option>
                 <option value="full">Full name</option>
@@ -103,7 +146,7 @@ export function IssuePanel({ design, values, onValue, onPhoto, onSheet, onSettin
             </label>
             <label className="flex items-start gap-2 text-[12.5px] leading-snug">
               <input type="checkbox" className="mt-0.5 h-4 w-4 accent-accent" checked={design.settings.indexable} onChange={(e) => onSettings({ indexable: e.target.checked })} />
-              Let search engines list the verification page
+              Let search engines list the {page}
             </label>
           </fieldset>
         )}
@@ -114,7 +157,7 @@ export function IssuePanel({ design, values, onValue, onPhoto, onSheet, onSettin
         <p className="text-[12.5px] leading-snug text-muted">{quotaNote}</p>
         {signedIn && templateId && (
           <Link href={`/app/bulk?template=${templateId}`} className="block text-[13px] text-accent underline-offset-2 hover:underline">
-            Issue many from a CSV file instead
+            {kind === 'invitation' ? 'Make one for every guest from a list instead' : 'Issue many from a CSV file instead'}
           </Link>
         )}
       </form>
@@ -143,23 +186,8 @@ export function IssuePanel({ design, values, onValue, onPhoto, onSheet, onSettin
       {result && (
         <div className="mx-4 mb-6 rounded-lg border border-seal/30 bg-seal-soft p-3.5" aria-live="polite">
           <p className="text-[13.5px] font-medium text-seal">{result.guest ? 'Downloaded (guest copy)' : 'Issued and downloaded'}</p>
-          {onSheet && (
-            <button
-              type="button"
-              className="mt-1 text-left text-[12.5px] font-medium text-seal underline underline-offset-2"
-              disabled={sheetBusy}
-              onClick={async () => {
-                setSheetBusy(true);
-                try {
-                  await onSheet();
-                } finally {
-                  setSheetBusy(false);
-                }
-              }}
-            >
-              {sheetBusy ? 'Building…' : 'Download it on an A4 sheet for printing'}
-            </button>
-          )}
+          {onSheet && <DownloadAgain onClick={onSheet}>{sheetLabel}</DownloadAgain>}
+          {onImage && <DownloadAgain onClick={onImage}>Download it as an image (JPG)</DownloadAgain>}
           <p className="mt-1 font-mono text-[12.5px] tracking-wide text-ink">{result.serial}</p>
           {result.guest ? (
             <p className="mt-2 text-[12.5px] leading-snug text-ink-2">
@@ -173,7 +201,7 @@ export function IssuePanel({ design, values, onValue, onPhoto, onSheet, onSettin
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
               <a href={result.verifyUrl} target="_blank" rel="noreferrer" className={btn.small + ' bg-seal text-card hover:bg-seal-dark'}>
-                Open verification page
+                Open {page}
               </a>
               <button type="button" className={btn.small + ' border border-seal/40 text-seal hover:bg-card'} onClick={() => copy(result.verifyUrl)}>
                 {copied === 'copied' ? 'Copied' : copied === 'failed' ? 'Could not copy' : 'Copy link'}

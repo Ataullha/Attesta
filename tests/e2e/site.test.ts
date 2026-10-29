@@ -14,7 +14,22 @@ const pathOf = (url: string) => new URL(url).pathname;
 const prerendered = (res: { headers: Headers }) => (res.headers.get('x-nextjs-prerender') ?? '').split(',').some((v) => v.trim() === '1');
 const structuredDataOf = (html: string) => [...html.matchAll(/<script type="application\/ld\+json">([^<]*)<\/script>/g)].flatMap((m) => JSON.parse(m[1]));
 
-const MARKETING = ['/', '/pricing', '/templates', '/templates/classic-ledger', '/templates/club-member-card', '/id-card-maker', '/certificate-maker', '/certificate-maker/course-completion', '/terms', '/privacy'];
+const MARKETING = [
+  '/',
+  '/pricing',
+  '/templates',
+  '/templates/classic-ledger',
+  '/templates/club-member-card',
+  '/templates/corporate-visiting-card',
+  '/templates/wedding-invitation',
+  '/id-card-maker',
+  '/visiting-card-maker',
+  '/invitation-card-maker',
+  '/certificate-maker',
+  '/certificate-maker/course-completion',
+  '/terms',
+  '/privacy',
+];
 
 describe('what search engines are told', () => {
   // Metadata is inherited. A canonical set in the root layout would be inherited by every page that does not
@@ -40,7 +55,23 @@ describe('what search engines are told', () => {
   it('lists the public pages in the sitemap and none of the private ones', async () => {
     const xml = (await new Browser().get('/sitemap.xml')).text;
     const paths = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => pathOf(m[1]));
-    expect(paths).toEqual(expect.arrayContaining(['/', '/pricing', '/templates', '/verify', '/certificate-maker', '/certificate-maker/course-completion', '/templates/classic-ledger', '/id-card-maker', '/templates/club-member-card']));
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        '/',
+        '/pricing',
+        '/templates',
+        '/verify',
+        '/certificate-maker',
+        '/certificate-maker/course-completion',
+        '/templates/classic-ledger',
+        '/id-card-maker',
+        '/templates/club-member-card',
+        '/visiting-card-maker',
+        '/invitation-card-maker',
+        '/templates/corporate-visiting-card',
+        '/templates/wedding-invitation',
+      ]),
+    );
     expect(paths.filter((p) => /^\/(app|admin|api|login|register)/.test(p))).toEqual([]);
   });
 

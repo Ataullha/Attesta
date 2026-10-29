@@ -4,24 +4,32 @@ import '@/components/editor/fonts';
 import Link from 'next/link';
 import Papa from 'papaparse';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { designKind, designSchema, kindNoun, photoFields, photoName, type Design } from '@/lib/design';
+import { KINDS, capitalised, designKind, designSchema, kindNoun, photoFields, photoName, type Design, type DesignKind } from '@/lib/design';
 import { cleanValues, csvCell } from '@/lib/values';
 import { limits } from '@/lib/site';
 import { btn, card, field } from '@/components/ui/styles';
 import { AssetStore, photoSide } from '@/components/editor/assets';
 import { ensureFonts, renderPage } from '@/components/editor/renderer';
-import { buildPdf, buildSheetPdf, downloadBytes, printsOnSheets, safeFilename, type PdfJob } from '@/components/editor/pdf';
+import { buildPdf, buildSheetPdf, downloadBytes, safeFilename, type PdfJob } from '@/components/editor/pdf';
+import { sheetFor } from '@/components/editor/sheet';
+import { downloadImages } from '@/components/editor/images';
 import { readPhotoFiles, skippedNote } from '@/components/editor/photo-files';
-import { sheetLayout } from '@/components/editor/sheet';
 
 type TemplateOption = { id: string; name: string };
 type Row = { index: number; values: Record<string, string>; errors: string[]; duplicate: boolean };
 type Issued = { serial: string; verifyUrl: string };
+type Output = 'copies' | 'sheets' | 'merged' | 'separate' | 'images';
+
+/** What a batch of each kind downloads as unless another layout is chosen: cards ready to print and cut, documents as one PDF. */
+function defaultOutput(kind: DesignKind, sheets: boolean): Output {
+  if (sheets && kind === 'visiting-card') return 'copies';
+  return sheets ? 'sheets' : 'merged';
+}
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0980-\u09ff]/g, '');
 
 const EXTRA_NAMES: Record<string, string[]> = {
-  recipient_name: ['name', 'fullname', 'studentname', 'participant', 'membername', 'employeename', 'নাম'],
+  recipient_name: ['name', 'fullname', 'studentname', 'participant', 'membername', 'employeename', 'guest', 'guestname', 'invitee', 'নাম', 'অতিথি', 'অতিথিরনাম'],
   issue_date: ['date', 'তারিখ'],
 };
 const TYPE_NAMES: Partial<Record<Design['fields'][number]['type'], string[]>> = {
@@ -59,8 +67,10 @@ function Preview({ design, values, assets, photoVersion }: { design: Design; val
       cancelled = true;
     };
   }, [design, values, assets, photoVersion]);
-  // A small page, such as an ID card, is shown at a sensible size rather than across the whole column.
-  const maxWidth = design.page.width < 700 ? (design.page.width > design.page.height ? 480 : 320) : undefined;
+  // A small page, such as a card or an invitation, is shown at a sensible size rather than across the whole column.
+  const longest = Math.max(design.page.width, design.page.height);
+  const landscape = design.page.width > design.page.height;
+  const maxWidth = longest < 400 ? (landscape ? 480 : 320) : longest < 800 ? (landscape ? 600 : 420) : undefined;
   return <canvas ref={ref} role="img" aria-label="Preview of the selected row" className="block h-auto w-full rounded-lg border border-rule bg-card" style={{ aspectRatio: `${design.page.width} / ${design.page.height}`, maxWidth }} />;
 }
 
@@ -81,7 +91,7 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<(Issued | null)[]>([]);
   const [batchId, setBatchId] = useState<string | null>(null);
-  const [output, setOutput] = useState<'sheets' | 'merged' | 'separate'>('merged');
+  const [output, setOutput] = useState<Output>('merged');
   // Photos are matched to rows by file name and stay in this page; `photoNames` is what was chosen.
   const [photoNames, setPhotoNames] = useState<Set<string>>(new Set());
   const [photoVersion, setPhotoVersion] = useState(0);
@@ -100,8 +110,8 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
         if (!parsed.success) throw new Error('This template has a problem. Open it in the editor and save it again.');
         setDesign(parsed.data);
         setTemplateName(j.name);
-        // ID cards are printed: A4 sheets with cut marks is the useful default.
-        setOutput(printsOnSheets(parsed.data) ? 'sheets' : 'merged');
+        // Cards are printed: A4 sheets with cut marks is the useful default.
+        setOutput(defaultOutput(designKind(parsed.data), !!sheetFor(parsed.data)));
       })
       .catch((e: Error) => setLoadError(e.message));
   }, [templateId]);
@@ -160,13 +170,16 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
   const ready = rows.filter((r) => !r.errors.length && !(skipDuplicates && r.duplicate));
   const problems = rows.filter((r) => r.errors.length);
   const duplicates = rows.filter((r) => r.duplicate && !r.errors.length);
-  const unmappedRequired = design?.fields.filter((f) => f.required && !mapping[f.key]) ?? [];
+  // A field the same for everyone needs no column: the design holds its value.
+  const sharedValue = (f: Design['fields'][number]) => !!f.fixed && f.type !== 'photo' && !!f.sample.trim();
+  const unmappedRequired = design?.fields.filter((f) => f.required && !mapping[f.key] && !sharedValue(f)) ?? [];
   const available = freeLeft + credits;
   const previewRow = ready[Math.min(previewIndex, Math.max(0, ready.length - 1))];
   const kind = design ? designKind(design) : 'certificate';
   const nouns = kindNoun(kind, true);
   const withoutPhoto = photoKeys.length ? ready.filter((r) => photoKeys.some((f) => !r.values[f.key])).length : 0;
-  const sheet = design && printsOnSheets(design) ? sheetLayout(design.page.width * 0.75, design.page.height * 0.75) : null;
+  const sheet = design ? sheetFor(design) : null;
+  const { holder, page } = KINDS[kind];
 
   async function onPhotos(files: FileList) {
     if (!design) return;
@@ -224,8 +237,10 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
 
   function sampleCsv() {
     if (!design) return;
-    const head = design.fields.map((f) => csvCell(f.label)).join(',');
-    const row = design.fields.map((f) => csvCell(f.sample || (f.type === 'date' ? '' : f.type === 'photo' ? 'photo-1.jpg' : f.label))).join(',');
+    // Only what differs from one person to the next: the design already holds what is the same for everyone.
+    const own = design.fields.filter((f) => !sharedValue(f));
+    const head = own.map((f) => csvCell(f.label)).join(',');
+    const row = own.map((f) => csvCell(f.sample || (f.type === 'date' ? '' : f.type === 'photo' ? 'photo-1.jpg' : f.label))).join(',');
     downloadBytes(new Blob(['\uFEFF' + head + '\n' + row + '\n'], { type: 'text/csv' }), `${safeFilename(templateName || 'template')}-sample.csv`, 'text/csv');
   }
 
@@ -289,17 +304,21 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
     setError(null);
     try {
       const JSZip = (await import('jszip')).default;
-      const indexCsv = ['Name,Serial,Verification link', ...jobs.map((j) => [csvCell(j.values.recipient_name), j.serial, j.verifyUrl].join(','))].join('\n');
+      const indexCsv = [`Name,Serial,${capitalised(page)}`, ...jobs.map((j) => [csvCell(j.values.recipient_name), j.serial, j.verifyUrl].join(','))].join('\n');
       const base = safeFilename(templateName || nouns);
-      const indexName = `${kind === 'id-card' ? 'id-cards' : 'certificates'}.csv`;
-      if (output === 'merged' || output === 'sheets') {
-        // Parts of about 250 pages; for sheets, a whole number of sheets, so no sheet is left half full mid-way.
+      const indexName = `${nouns.toLowerCase().replace(/\s+/g, '-')}.csv`;
+      if (output === 'images') {
+        await downloadImages(jobs, assets, base, { index: { name: indexName, csv: indexCsv }, onProgress: (d, t) => setProgress({ done: d, total: t, label: 'Making images' }) });
+      } else if (output === 'merged' || output === 'sheets' || output === 'copies') {
+        // Parts of about 250 pages; for shared sheets, a whole number of sheets, so no sheet is left half full mid-way.
         const per = output === 'sheets' && sheet ? sheet.perSheet * Math.floor(250 / sheet.perSheet) : 250;
-        const build = output === 'sheets' ? buildSheetPdf : buildPdf;
-        const suffix = output === 'sheets' ? '-A4' : '';
+        const onSheets = output !== 'merged';
+        const suffix = onSheets ? '-A4' : '';
         const parts: Uint8Array[] = [];
         for (let s = 0; s < jobs.length; s += per) {
-          parts.push(await build(jobs.slice(s, s + per), assets, (d) => setProgress({ done: s + d, total: jobs.length, label: 'Building PDF' })));
+          const part = jobs.slice(s, s + per);
+          const onProgress = (d: number) => setProgress({ done: s + d, total: jobs.length, label: 'Building PDF' });
+          parts.push(onSheets ? await buildSheetPdf(part, assets, onProgress, { fill: output === 'copies' }) : await buildPdf(part, assets, onProgress));
         }
         if (parts.length === 1) downloadBytes(parts[0], `${base}${suffix}.pdf`);
         else {
@@ -361,7 +380,8 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
         {loadError && <p role="alert" className="mt-3 text-[14px] text-revoked">{loadError}</p>}
         {design && (
           <p className="mt-3 text-[14px] text-muted">
-            Fields: {design.fields.map((f) => f.label).join(', ')}
+            Fields: {design.fields.filter((f) => !sharedValue(f)).map((f) => f.label).join(', ')}
+            {design.fields.some(sharedValue) && <> · The same for everyone: {design.fields.filter(sharedValue).map((f) => f.label).join(', ')}</>}
           </p>
         )}
       </section>
@@ -430,14 +450,24 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
                     </td>
                     <td className="py-2.5 pr-4">
                       <select className={field.small} aria-label={`CSV column for ${f.label}`} value={mapping[f.key] ?? ''} disabled={busy || issued.some(Boolean)} onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value }))}>
-                        <option value="">{f.type === 'date' ? 'Not in file — use today' : f.type === 'expiry' ? 'Not in file — no end date' : f.type === 'photo' ? 'Not in file — no photos' : 'Not in file'}</option>
+                        <option value="">
+                          {sharedValue(f)
+                            ? `Same for everyone: ${f.sample.length > 40 ? `${f.sample.slice(0, 40)}…` : f.sample}`
+                            : f.type === 'date'
+                              ? 'Not in file — use today'
+                              : f.type === 'expiry'
+                                ? 'Not in file — no end date'
+                                : f.type === 'photo'
+                                  ? 'Not in file — no photos'
+                                  : 'Not in file'}
+                        </option>
                         {headers.map((h) => (
                           <option key={h} value={h}>{h}</option>
                         ))}
                       </select>
                     </td>
                     <td className="max-w-[220px] truncate py-2.5 text-ink-2">
-                      {mapping[f.key] ? raw[0]?.[mapping[f.key]] : '—'}
+                      {mapping[f.key] ? raw[0]?.[mapping[f.key]] : sharedValue(f) ? f.sample : '—'}
                       {f.type === 'photo' && mapping[f.key] && raw.length > 0 && (
                         <span className="block text-[12.5px] text-muted">
                           {raw.filter((r) => photoNames.has(photoName(r[mapping[f.key]] ?? ''))).length.toLocaleString()} of {raw.length.toLocaleString()} rows have a photo
@@ -533,22 +563,34 @@ export function BulkIssuer({ templates, initialTemplateId, credits, freeLeft }: 
               <p className="font-medium text-seal">{issued.filter(Boolean).length.toLocaleString()} {nouns} registered.</p>
               <fieldset className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[14.5px]" disabled={phase === 'building'}>
                 <legend className="sr-only">Download format</legend>
+                {sheet && kind === 'visiting-card' && (
+                  <label className="flex items-center gap-2">
+                    <input type="radio" name="out" className="accent-accent" checked={output === 'copies'} onChange={() => setOutput('copies')} />
+                    A4 sheets, a full sheet of {sheet.perSheet} for each person
+                  </label>
+                )}
                 {sheet && (
                   <label className="flex items-center gap-2">
                     <input type="radio" name="out" className="accent-accent" checked={output === 'sheets'} onChange={() => setOutput('sheets')} />
-                    A4 sheets for printing ({sheet.perSheet} per page, with cut marks)
+                    {kind === 'visiting-card' ? `A4 sheets, one card for each person (${sheet.perSheet} per page)` : `A4 sheets for printing (${sheet.perSheet} per page, with cut marks)`}
                   </label>
                 )}
                 <label className="flex items-center gap-2">
                   <input type="radio" name="out" className="accent-accent" checked={output === 'merged'} onChange={() => setOutput('merged')} />
-                  {sheet ? 'One PDF at card size, for card printers' : 'One PDF (250 pages per file)'}
+                  {sheet ? 'One PDF at card size, for card printers and print shops' : 'One PDF (250 pages per file)'}
                 </label>
                 <label className="flex items-center gap-2"><input type="radio" name="out" className="accent-accent" checked={output === 'separate'} onChange={() => setOutput('separate')} />Separate PDFs in a ZIP</label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="out" className="accent-accent" checked={output === 'images'} onChange={() => setOutput('images')} />
+                  Images (JPG) in a ZIP, one for each {holder}{kind === 'invitation' ? ', to send by WhatsApp or Messenger' : ''}
+                </label>
               </fieldset>
               <button type="button" className={btn.seal + ' mt-4'} disabled={phase === 'building'} onClick={buildOutput}>
                 {phase === 'building' ? 'Building…' : `Download ${nouns}`}
               </button>
-              <p className="mt-2 text-[13px] text-ink-2">The ZIP also contains a CSV of names, serials and verification links.</p>
+              <p className="mt-2 text-[13px] text-ink-2">
+                A ZIP also contains a CSV of names, serials and links to each {page}.{output === 'images' && ready.length > 200 ? ' Images come in ZIP files of 200 each.' : ''}
+              </p>
             </div>
           )}
         </section>

@@ -2,7 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
-import { designKind, maskName, type Design, type DesignKind } from './design';
+import { capitalised, designKind, kindNoun, maskName, type Design, type DesignKind } from './design';
 import { isPublicField } from './values';
 import { SERIAL_PATTERN, normalizeSerial, verifyRecord } from './signing';
 
@@ -53,7 +53,7 @@ export const getCertificateView = cache(async (raw: string): Promise<Certificate
     status: c.revokedAt ? 'revoked' : !check.ok ? 'unconfirmed' : c.expiresAt && c.expiresAt.getTime() < Date.now() ? 'expired' : 'valid',
     recipient: maskName(c.recipientName, c.nameDisplay),
     fields,
-    credential: credential ? values[credential.key] : kind === 'id-card' ? 'ID card' : 'Certificate',
+    credential: credential ? values[credential.key] : capitalised(kindNoun(kind)),
     issuedAt: c.issuedAt,
     expiresAt: c.expiresAt,
     revokedAt: c.revokedAt,

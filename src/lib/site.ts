@@ -8,7 +8,7 @@ export const site = {
   name: 'Attesta',
   shortDescription: 'Issue certificates anyone can verify in one scan.',
   description:
-    'Design certificates from a template or your own artwork, add signatures, QR codes and barcodes, issue one or thousands from a CSV, and give every certificate a permanent verification page.',
+    'Design certificates, ID cards, visiting cards and invitations from a template or your own artwork, issue one or thousands from a CSV, and give every one a QR code and a permanent page that proves it.',
   url: (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/$/, ''),
   serialPrefix: 'ATT',
   supportEmail: 'support@example.com',

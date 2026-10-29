@@ -81,7 +81,7 @@ describe('a certificate, from issuing to revocation', () => {
 describe('the public verification page', () => {
   it('says plainly when a serial does not exist', async () => {
     const page = await new Browser().get('/verify/ATT-ZZZZ-ZZZZ-ZZZZ');
-    expect(page.text).toContain('No certificate has this serial');
+    expect(page.text).toContain('Nothing was issued with this serial');
     expect(page.text).toContain('noindex'); // not something for search engines to list
   });
 
@@ -109,7 +109,7 @@ describe('guests', () => {
 
   it('are told that their certificate cannot be verified', async () => {
     const { serial } = (await issue(new Browser(), ['Guest Person'])).json.issued[0];
-    expect((await new Browser().get(`/verify/${serial}`)).text).toContain('unregistered guest certificate');
+    expect((await new Browser().get(`/verify/${serial}`)).text).toContain('unregistered guest copy');
   });
 
   it('cannot issue in bulk', async () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { PAGE_SIZES, designKind, kindNoun, placeholdersIn, slugKey, type Design, type ElementType, type Field, type PageSizeId } from '@/lib/design';
+import { DESIGN_KINDS, KINDS, PAGE_SIZES, designKind, kindNoun, placeholdersIn, slugKey, type Design, type DesignKind, type ElementType, type Field, type PageSizeId } from '@/lib/design';
 import { btn, field } from '@/components/ui/styles';
 import { elementLabel } from './elements';
 
@@ -31,6 +31,47 @@ const ADD_ITEMS: { type: ElementType; role?: 'signature' | 'logo' | 'image'; lab
   { type: 'image', role: 'image', label: 'Image', hint: 'Any picture' },
 ];
 
+/** What scanning the QR code does, which depends on what the design is. */
+const QR_HINT: Record<DesignKind, string> = {
+  certificate: 'Opens verification',
+  'id-card': 'Opens verification',
+  'visiting-card': 'Saves the contact',
+  invitation: 'Opens the invitation',
+};
+
+/** Under the page size: how each kind prints. */
+const SIZE_HINT: Record<DesignKind, string | null> = {
+  certificate: null,
+  'id-card': 'Prints at the standard card size, or 10 to an A4 sheet with cut marks.',
+  'visiting-card': 'Prints at 3.5 × 2 inches, or 10 to an A4 sheet with cut marks: a full sheet for each person, or one card each.',
+  invitation: 'Prints at this size, and downloads as images to send by WhatsApp or Messenger.',
+};
+
+const OWN_DESIGN: Record<DesignKind, { noun: string; body: string; match: string }> = {
+  certificate: {
+    noun: 'certificate',
+    body: 'Upload a PNG or JPG of a certificate you designed elsewhere (Canva, Illustrator, Photoshop) with the name area left blank. Then drag field boxes onto it.',
+    match: 'Resize the page to match the image',
+  },
+  'id-card': {
+    noun: 'card',
+    body: 'Upload a PNG or JPG of a card you designed elsewhere (Canva, Illustrator, Photoshop) with the name and photo areas left blank. Then drag field boxes and a photo frame onto it.',
+    match: 'Turn the card to match the image (landscape or portrait)',
+  },
+  'visiting-card': {
+    noun: 'card',
+    body: 'Upload a PNG or JPG of a visiting card you designed elsewhere (Canva, Illustrator, Photoshop) with the name and contact details left blank. Then drag field boxes onto it.',
+    match: 'Turn the card to match the image (landscape or portrait)',
+  },
+  invitation: {
+    noun: 'invitation',
+    body: 'Upload a PNG or JPG of an invitation you designed elsewhere (Canva, Illustrator, Photoshop) with a space left for the guest’s name. Then drag the name box onto it.',
+    match: 'Resize the invitation to match the image',
+  },
+};
+
+const GROUP_LABEL: Record<DesignKind, string> = { certificate: 'Certificates', 'id-card': 'ID cards', 'visiting-card': 'Visiting cards', invitation: 'Invitations' };
+
 export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox, onSelect, onBackground, uploading }: Props) {
   const [tab, setTab] = useState<Tab>('add');
   const [newLabel, setNewLabel] = useState('');
@@ -40,6 +81,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
   const usedKeys = new Set(design.elements.flatMap((e) => (e.type === 'text' ? placeholdersIn(e.content) : e.type === 'photo' ? [e.field] : [])));
   const kind = designKind(design);
   const noun = kindNoun(kind);
+  const { page } = KINDS[kind];
 
   function updateField(key: string, patch: Partial<Field>) {
     setDesign((d) => ({ ...d, fields: d.fields.map((f) => (f.key === key ? { ...f, ...patch } : f)) }));
@@ -55,8 +97,11 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
       while (keys.has(`${key}_${i}`)) i++;
       key = `${key}_${i}`;
     }
-    const type: Field['type'] = /valid|expir|মেয়াদ/i.test(label) ? 'expiry' : /date|তারিখ/i.test(label) ? 'date' : /e-?mail/i.test(label) ? 'email' : /photo|picture|ছবি/i.test(label) ? 'photo' : 'text';
-    const f: Field = { key, label, type: type === 'expiry' && design.fields.some((x) => x.type === 'expiry') ? 'date' : type, required: false, public: type !== 'photo' && !/e-?mail|phone|mobile/i.test(label), sample: '' };
+    // On a visiting card an email address or a phone number is there to be shared: plain text, shown on
+    // the contact page. Anywhere else it is a private detail kept for the issuer.
+    const contact = kind === 'visiting-card';
+    const type: Field['type'] = /valid|expir|মেয়াদ/i.test(label) ? 'expiry' : /date|তারিখ/i.test(label) ? 'date' : !contact && /e-?mail/i.test(label) ? 'email' : /photo|picture|ছবি/i.test(label) ? 'photo' : 'text';
+    const f: Field = { key, label, type: type === 'expiry' && design.fields.some((x) => x.type === 'expiry') ? 'date' : type, required: false, public: type !== 'photo' && (contact || !/e-?mail|phone|mobile/i.test(label)), sample: '' };
     if (withBox && f.type !== 'email') onAddFieldBox(f);
     else setDesign((d) => ({ ...d, fields: [...d.fields, f] }));
     setNewLabel('');
@@ -101,7 +146,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                   className="flex min-h-[74px] flex-col items-start justify-between rounded-lg border border-rule bg-card p-2.5 text-left hover:border-accent"
                 >
                   <span className="text-[13.5px] font-medium text-ink">{it.label}</span>
-                  <span className="text-[11.5px] leading-tight text-muted">{it.hint}</span>
+                  <span className="text-[11.5px] leading-tight text-muted">{it.type === 'qr' ? QR_HINT[kind] : it.hint}</span>
                 </button>
               ))}
             </div>
@@ -123,7 +168,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
         {tab === 'fields' && (
           <div className="space-y-3 p-4">
             <p className="text-[12.5px] leading-snug text-muted">
-              Fields are the details that change per {noun}. In bulk issuing, each CSV column is matched to one of these.
+              Fields are the details that change from one {noun} to the next, or that are the same on every one, such as a date or an address. In bulk issuing, each CSV column is matched to one of these.
             </p>
             {design.fields.map((f) => (
               <div key={f.key} className="rounded-lg border border-rule bg-card p-3">
@@ -137,7 +182,10 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                 </div>
                 <div className="mt-1.5 flex items-center justify-between">
                   <code className="font-mono text-[11px] text-accent">{`{{${f.key}}}`}</code>
-                  {!usedKeys.has(f.key) && f.type !== 'email' && <span className="text-[11.5px] text-revoked">Not on the {noun} yet</span>}
+                  {!usedKeys.has(f.key) && f.type !== 'email' && (
+                    // A detail the same for everyone, such as a map link, may be meant for the page alone.
+                    <span className={`text-[11.5px] ${f.fixed && f.public ? 'text-muted' : 'text-revoked'}`}>{f.fixed && f.public ? `Shown on the ${page} only` : `Not on the ${noun} yet`}</span>
+                  )}
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <label className="block">
@@ -161,7 +209,7 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[11.5px] text-muted">Example value</span>
+                    <span className="mb-1 block text-[11.5px] text-muted">{f.fixed && f.type !== 'photo' ? 'Value for everyone' : 'Example value'}</span>
                     <input className={field.small} value={f.sample} maxLength={300} onChange={(e) => updateField(f.key, { sample: e.target.value })} />
                   </label>
                 </div>
@@ -172,9 +220,16 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                   </label>
                   <label className="flex items-center gap-1.5 text-[12.5px]">
                     <input type="checkbox" className="h-4 w-4 accent-accent" checked={f.public && f.type !== 'email' && f.type !== 'photo'} disabled={f.type === 'email' || f.type === 'photo'} onChange={(e) => updateField(f.key, { public: e.target.checked })} />
-                    Show on verification page
+                    Show on {page}
                   </label>
+                  {f.key !== 'recipient_name' && f.type !== 'photo' && (
+                    <label className="flex items-center gap-1.5 text-[12.5px]">
+                      <input type="checkbox" className="h-4 w-4 accent-accent" checked={!!f.fixed} onChange={(e) => updateField(f.key, { fixed: e.target.checked || undefined })} />
+                      Same for everyone
+                    </label>
+                  )}
                 </div>
+                {f.fixed && f.type !== 'photo' && <p className="mt-2 text-[12px] leading-snug text-muted">Every {noun} shows the value above, so a CSV needs no column for it.</p>}
                 {f.type === 'photo' && <p className="mt-2 text-[12px] leading-snug text-muted">Filled with each person’s photo, found by its file name. Photos stay on your device.</p>}
                 {f.type === 'expiry' && <p className="mt-2 text-[12px] leading-snug text-muted">After this date the verification page says the {noun} has expired. Leave it empty for no end date.</p>}
                 {f.type !== 'email' && (
@@ -196,15 +251,11 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
         {tab === 'page' && (
           <div className="space-y-5 p-4">
             <section className="rounded-lg border border-rule bg-card p-3.5">
-              <h2 className="text-[14px] font-semibold">Use your own {kind === 'id-card' ? 'card' : 'certificate'} design</h2>
-              <p className="mt-1 text-[12.5px] leading-snug text-muted">
-                {kind === 'id-card'
-                  ? 'Upload a PNG or JPG of a card you designed elsewhere (Canva, Illustrator, Photoshop) with the name and photo areas left blank. Then drag field boxes and a photo frame onto it.'
-                  : 'Upload a PNG or JPG of a certificate you designed elsewhere (Canva, Illustrator, Photoshop) with the name area left blank. Then drag field boxes onto it.'}
-              </p>
+              <h2 className="text-[14px] font-semibold">Use your own {OWN_DESIGN[kind].noun} design</h2>
+              <p className="mt-1 text-[12.5px] leading-snug text-muted">{OWN_DESIGN[kind].body}</p>
               <label className="mt-3 flex items-center gap-2 text-[12.5px]">
                 <input type="checkbox" className="h-4 w-4 accent-accent" checked={matchPage} onChange={(e) => setMatchPage(e.target.checked)} />
-                {kind === 'id-card' ? 'Turn the card to match the image (landscape or portrait)' : 'Resize the page to match the image'}
+                {OWN_DESIGN[kind].match}
               </label>
               <input
                 ref={bgRef}
@@ -249,8 +300,8 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                     const sx = s.width / d.page.width;
                     const sy = s.height / d.page.height;
                     // Scale positions so the layout survives the size change, and type by the change
-                    // in area (so turning a page round keeps it). A card size makes the design an ID
-                    // card; a paper size, a certificate.
+                    // in area (so turning a page round keeps it). The size also says what the design
+                    // is: an ID card size makes it an ID card, a paper size a certificate, and so on.
                     const k = Math.sqrt(sx * sy);
                     return {
                       ...d,
@@ -261,29 +312,22 @@ export function LeftPanel({ design, selectedId, setDesign, onAdd, onAddFieldBox,
                   });
                 }}
               >
-                <optgroup label="Certificates">
-                  {Object.entries(PAGE_SIZES)
-                    .filter(([, s]) => s.kind === 'certificate')
-                    .map(([k, s]) => (
-                      <option key={k} value={k}>
-                        {s.label}
-                      </option>
-                    ))}
-                </optgroup>
-                <optgroup label="ID cards">
-                  {Object.entries(PAGE_SIZES)
-                    .filter(([, s]) => s.kind === 'id-card')
-                    .map(([k, s]) => (
-                      <option key={k} value={k}>
-                        {s.label}
-                      </option>
-                    ))}
-                </optgroup>
+                {DESIGN_KINDS.map((k) => (
+                  <optgroup key={k} label={GROUP_LABEL[k]}>
+                    {Object.entries(PAGE_SIZES)
+                      .filter(([, s]) => s.kind === k)
+                      .map(([id, s]) => (
+                        <option key={id} value={id}>
+                          {s.label}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
                 <option value="custom" disabled>
                   Custom ({Math.round(design.page.width)} × {Math.round(design.page.height)})
                 </option>
               </select>
-              {kind === 'id-card' && <span className={`${field.hint} block`}>Prints at the standard card size, or 10 to an A4 sheet with cut marks.</span>}
+              {SIZE_HINT[kind] && <span className={`${field.hint} block`}>{SIZE_HINT[kind]}</span>}
             </label>
             <label className="flex items-center justify-between">
               <span className="text-[13px] text-ink-2">Background colour</span>

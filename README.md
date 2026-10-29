@@ -1,6 +1,7 @@
-# Attesta — certificate and ID card generator with QR verification
+# Attesta — certificates, ID cards, visiting cards and invitations, with QR verification
 
-Design certificates and ID cards (from templates or your own artwork), issue one or thousands from CSV, and give every one a signed, permanent verification page.
+Design certificates, ID cards, visiting cards and wedding or event invitations (from templates or your own artwork), issue one or
+thousands from CSV, and give every one a QR code and a signed, permanent page: a verification page, a contact card, or an invitation.
 
 Built with Next.js 16, TypeScript, Tailwind CSS 4, Drizzle ORM and Postgres. Ready for Vercel.
 
@@ -203,6 +204,44 @@ portrait, and work like certificates: each has a serial, a QR code, a signed ver
 - **Defaults.** ID card templates show the holder’s full name on the verification page and keep it out of search engines; both can be
   changed per template. Each card uses one credit, like a certificate.
 
+## Visiting cards
+Visiting cards are a design kind of their own, at 3.5 × 2 inches (the size printed in Bangladesh and India, and the US business card),
+landscape or portrait: four templates (corporate, minimal, a dark portrait card, a Bangla card), a blank card, or a visiting card size
+under **Page**.
+
+- **A QR code that saves the contact.** A visiting card’s QR code opens its page at `/verify/SERIAL`, laid out as a contact card with
+  **Save contact**, **Call** and **Email** buttons. *Save contact* downloads a vCard 3.0 (`/verify/SERIAL/vcard`) that iPhones and
+  Android phones import: name, designation, company and department, every phone number (mobile or landline, told apart by the label or
+  by the number), email, website and address. Details are recognised by their value where that is unambiguous (an email address, a
+  web address, a number written like `+880…` or `01711…`) and otherwise by their label, in English or Bangla; anything else goes in the
+  contact’s note. Addresses link to a map, websites open in a new tab and are marked `nofollow ugc`.
+- **Revoking.** A revoked card’s page says the card is no longer in use, and it stops offering the contact.
+- **Printing.** Visiting cards are printed many of one: bulk downloads default to an A4 sheet per person (10 landscape or 9 portrait
+  copies, edge to edge, with cut marks). They also come as A4 sheets with one card for each person, or one card per page at card size
+  for a print shop. A visiting card issued in the editor downloads as a single card and as a sheet of copies.
+- **On a visiting card, contact details are public.** Adding a field called Email, Phone or Mobile to a visiting card makes a plain text
+  field shown on the contact page, where on other kinds it makes a private one.
+
+## Invitations
+Wedding and event invitations, at 5 × 7 inches (portrait or landscape), A5 or a 6-inch square. Three templates (a classic wedding card,
+a Bangla শুভ বিবাহ card, an evening event), or a blank invitation.
+
+- **Every guest by name.** The guest’s name is the field that changes; issue a whole guest list from a CSV (a column called *Guest*,
+  *Guest name* or *Name* is found by itself).
+- **Images to send.** Every kind downloads as JPEG images as well as PDFs (1600 pixels along the long side), and for invitations this is
+  the way to send each guest their own on WhatsApp or Messenger: the ZIP holds one image per guest, named after them.
+- **The invitation page.** The QR code opens a page that says the invitation is genuine (or withdrawn), whom it is for, and the details
+  the host chose to share, with the venue on a map and phone numbers to call: something to scan at the door, and directions for the
+  guest.
+- Invitations print one to a page (even two 7 × 5 cards would fit an A4 sheet: print shops lay out their own sheets).
+
+## Details that are the same for everyone
+A field can be marked **Same for everyone** in the editor’s *Fields* tab: a company’s name, website and address on visiting cards, an
+event’s date, venue and RSVP number on invitations. Its value is typed once (in *Fields*, or under *Same on every …* in the issue
+panel) and saved with the design. Every document issued from it carries that value unless a recipient is given one of their own: a
+CSV needs no column for it, and a column it does have wins row by row. Such a field can also be left off the design and shown only on
+the page the QR code opens, such as an event’s name. The visiting card and invitation templates use these fields.
+
 ## How verification works
 - Every certificate gets a random serial like `ATT-7K2Q-9M4D-X1TB` (60 random bits, never sequential).
 - The server signs a canonical record (serial, issuer, recipient, public fields, date, design hash) with Ed25519 and stores the signature.
@@ -220,7 +259,8 @@ fields as extra columns. The file opens correctly in Excel, Bangla names include
 PDFs are built **in the user’s browser**, not on the server. This keeps Bangla conjuncts correct (server PDF libraries break them),
 makes the preview identical to the output, and lets 5,000-row batches run without serverless time limits or server cost.
 The server only registers certificates (100 per request) and enforces quotas.
-Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi, and at ~576 dpi on small pages such as ID cards.
+Borders, lines, seals and QR codes are vector; text is rendered at ~288 dpi, at ~384 dpi on invitations, and at ~576 dpi on cards.
+Images (JPEG) are drawn by the same canvas renderer as the editor.
 
 ## Security summary
 - Passwords: scrypt (N=32768) with per-user salt. Sessions: random tokens, stored hashed, httpOnly + SameSite cookies.
@@ -288,23 +328,24 @@ npm run test:e2e       # starts the built app, with stand-ins for the mail provi
 `npm test` covers the signing and serial rules, design and CSV handling, password hashing, image re-encoding, redirects,
 one-time links, rate limits and the CSV export. `npm run test:e2e` covers what a person does: sign up (with a password or with Google), confirm by email, issue,
 verify, revoke, reset a password, export, pay (online, including forged and repeated notices, or by transaction ID), issue ID
-cards (with photos, valid-until dates and expiry), the admin screens, and what search engines are told. It refuses to run if the build is
+cards (with photos, valid-until dates and expiry), visiting cards (the contact page, the vCard, revoking) and invitations (shared
+details, a guest’s own values, withdrawing), the admin screens, and what search engines are told. It refuses to run if the build is
 older than the source. GitHub Actions runs the type check, both suites and the build on every pull request and every push to `main`
 (`.github/workflows/ci.yml`).
 
 ## Project map
 ```
-src/app/(site)/        public pages: landing, templates, certificate-maker (use cases), verify, pricing, legal
+src/app/(site)/        public pages: landing, templates, the certificate, ID card, visiting card and invitation makers, verify, pricing, legal
 src/app/preview/       development-only pages that scripts/render-previews.mjs photographs
 src/app/(auth)/        sign in, register, password reset, email confirmation
-src/app/create/        the certificate editor
+src/app/create/        the editor, for every kind
 src/app/app/           user panel: certificates, batches, bulk, templates, library, organisation, billing, settings
 src/app/admin/         admin panel
 src/app/api/           all server endpoints
-src/components/editor/ editor, canvas renderer, PDF builder, A4 card sheets, photos
+src/components/editor/ editor, canvas renderer, PDF and image builders, A4 card sheets, photos
 src/components/bulk/   CSV bulk issuing
 src/components/ui/     shared styles, and the in-page dialogs and toasts
-src/lib/               database schema, auth, signing, quotas, presets, site config
+src/lib/               database schema, auth, signing, quotas, presets, contact details and vCards, site config
 src/lib/payments/      SSLCommerz checkout, validation and settlement
 drizzle/               SQL migrations
 tests/unit/            logic with no database

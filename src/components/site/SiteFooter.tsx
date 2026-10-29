@@ -9,10 +9,12 @@ const columns: { title: string; links: [string, string][] }[] = [
     links: [
       ['Certificate editor', '/create'],
       ['ID card maker', '/id-card-maker'],
+      ['Visiting card maker', '/visiting-card-maker'],
+      ['Invitation card maker', '/invitation-card-maker'],
       ['Templates', '/templates'],
       ['Bulk from CSV', '/certificate-maker/bulk-certificate-generator'],
       ['Pricing', '/pricing'],
-      ['Verify a certificate', '/verify'],
+      ['Check a serial number', '/verify'],
     ],
   },
   {

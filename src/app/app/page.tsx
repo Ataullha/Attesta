@@ -6,6 +6,7 @@ import { batchKind, certificateFilter } from '@/lib/certificates';
 import { freeRenewsOn, usageThisMonth } from '@/lib/issue';
 import { emailConfigured } from '@/lib/email';
 import { verifyUrl } from '@/lib/signing';
+import { capitalised, kindNoun } from '@/lib/design';
 import { formatDate } from '@/lib/verify';
 import { formatMoney, limits, packages } from '@/lib/site';
 import { btn, card, field } from '@/components/ui/styles';
@@ -20,7 +21,7 @@ const PER_PAGE = 25;
  * certificate is a stacked card. The last two tracks are fixed, not `auto`: `auto` sizes to the
  * content of each separate grid, so the header and the rows would not line up.
  */
-const CERT_COLS = 'xl:grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px_232px] xl:items-start xl:gap-x-4';
+const CERT_COLS = 'xl:grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px_290px] xl:items-start xl:gap-x-4';
 
 export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
   const user = await requireUserPage('/app');
@@ -71,9 +72,9 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
 
   return (
     <>
-      <PageTitle title="Certificates">
+      <PageTitle title="Dashboard">
         <Link href="/app/bulk" className={btn.secondary}>Bulk from CSV</Link>
-        <Link href="/create" className={btn.primary}>New certificate</Link>
+        <Link href="/app/templates#new" className={btn.primary}>Create new</Link>
       </PageTitle>
 
       <GettingStarted
@@ -144,8 +145,8 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
           <ul className={`${card} divide-y divide-rule`}>
             {batches.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-[14.5px]">
-                <span className="min-w-0"><span className="block truncate font-medium">{b.name}</span><span className="text-[13px] text-muted">{b.count.toLocaleString()} {b.card ? 'ID cards' : 'certificates'} · {formatDate(b.createdAt)}</span></span>
-                <BatchDownload batchId={b.id} card={b.card} photos={b.photos} />
+                <span className="min-w-0"><span className="block truncate font-medium">{b.name}</span><span className="text-[13px] text-muted">{b.count.toLocaleString()} {kindNoun(b.kind, b.count !== 1)} · {formatDate(b.createdAt)}</span></span>
+                <BatchDownload batchId={b.id} kind={b.kind} photos={b.photos} />
               </li>
             ))}
           </ul>
@@ -168,23 +169,23 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
       {certs.length === 0 && q ? (
         <div className={`${card} p-8 text-center`}>
           <p className="text-[16px]">Nothing matches that search.</p>
-          <Link href="/app" className="mt-2 inline-block text-[14px] text-accent underline underline-offset-2">Show all certificates</Link>
+          <Link href="/app" className="mt-2 inline-block text-[14px] text-accent underline underline-offset-2">Show everything</Link>
         </div>
       ) : certs.length === 0 ? (
         <section aria-labelledby="none-h" className={`${card} p-6 sm:p-8`}>
-          <h2 id="none-h" className="font-display text-[22px] leading-tight">No certificates yet</h2>
+          <h2 id="none-h" className="font-display text-[22px] leading-tight">Nothing issued yet</h2>
           <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-ink-2">
             Everything you issue is listed here with its serial and status, to download again, share or revoke whenever you need to.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <Link href="/create" className="block rounded-xl border border-rule-2 p-4 transition-colors hover:border-accent">
-              <span className="block font-medium">Make one certificate</span>
-              <span className="mt-1 block text-[14px] leading-snug text-muted">Start from a template, fill in a name and download the PDF.</span>
+            <Link href="/app/templates#new" className="block rounded-xl border border-rule-2 p-4 transition-colors hover:border-accent">
+              <span className="block font-medium">Make your first one</span>
+              <span className="mt-1 block text-[14px] leading-snug text-muted">A certificate, ID card, visiting card or invitation: start from a template, fill in a name and download it.</span>
             </Link>
             <Link href="/app/bulk" className="block rounded-xl border border-rule-2 p-4 transition-colors hover:border-accent">
               <span className="block font-medium">Issue a whole group from CSV</span>
               <span className="mt-1 block text-[14px] leading-snug text-muted">
-                {user.credits > 0 ? 'One row per person; each certificate uses a credit.' : `One row per person. Comes with a package, from ${formatMoney(smallest.price)}.`}
+                {user.credits > 0 ? 'One row per person; each one uses a credit.' : `One row per person. Comes with a package, from ${formatMoney(smallest.price)}.`}
               </span>
             </Link>
           </div>
@@ -215,7 +216,7 @@ export default async function Dashboard({ searchParams }: PageProps<'/app'>) {
                   <div className="flex items-start justify-between gap-3 xl:block">
                     <div className="min-w-0">
                       <p className="break-words font-medium">{c.name}</p>
-                      <p className="break-words text-[12.5px] text-muted">{c.card ? `ID card · ${c.batch}` : c.batch}</p>
+                      <p className="break-words text-[12.5px] text-muted">{c.kind === 'certificate' ? c.batch : `${capitalised(kindNoun(c.kind))} · ${c.batch}`}</p>
                     </div>
                     <span className="shrink-0 xl:hidden">{status}</span>
                   </div>

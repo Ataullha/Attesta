@@ -5,7 +5,7 @@ export function VerifySearch({ className = '', defaultValue = '' }: { className?
   return (
     <form action="/verify" method="get" role="search" className={`flex gap-2 ${className}`}>
       <label className="flex-1">
-        <span className="sr-only">Certificate serial number</span>
+        <span className="sr-only">Serial number</span>
         <input
           name="serial"
           defaultValue={defaultValue}

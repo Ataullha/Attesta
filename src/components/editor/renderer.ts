@@ -139,10 +139,22 @@ export function drawQr(ctx: CanvasRenderingContext2D, el: Extract<DesignElement,
     ctx.fillStyle = el.background;
     ctx.fillRect(g.ox, g.oy, g.side, g.side);
   }
-  ctx.fillStyle = el.color;
-  for (let r = 0; r < size; r++)
-    for (let c = 0; c < size; c++)
-      if (data[r * size + c]) ctx.fillRect(g.ox + (c + g.margin) * g.cell, g.oy + (r + g.margin) * g.cell, g.cell + 0.03, g.cell + 0.03);
+  // One pixel per module, scaled up without smoothing: square modules with no hairline seams between
+  // them, at any zoom and in images, where drawing each module as its own rectangle leaves faint gaps.
+  const modules = document.createElement('canvas');
+  modules.width = modules.height = size;
+  const mctx = modules.getContext('2d')!;
+  const px = mctx.createImageData(size, size);
+  const n = parseInt(el.color.slice(1), 16);
+  for (let i = 0; i < size * size; i++) {
+    if (!data[i]) continue;
+    px.data.set([(n >> 16) & 255, (n >> 8) & 255, n & 255, 255], i * 4);
+  }
+  mctx.putImageData(px, 0, 0);
+  const smoothing = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(modules, g.ox + g.margin * g.cell, g.oy + g.margin * g.cell, size * g.cell, size * g.cell);
+  ctx.imageSmoothingEnabled = smoothing;
 }
 
 export function barcodeCanvas(value: string, el: Extract<DesignElement, { type: 'barcode' }>) {

@@ -1,8 +1,12 @@
+import { designKind, isCard, type Design } from '@/lib/design';
+
 /** A4 in PDF points (1/72 inch). */
 export const A4 = { width: 595.28, height: 841.89 };
 
 /** Kept clear around the cards: inside what office printers can print, with room for the cut marks. */
 const MARGIN = 28.35; // 10 mm
+/** Points per design pixel (a design pixel is 1/96 inch). */
+const PT = 0.75;
 
 export type SheetLayout = {
   cols: number;
@@ -27,6 +31,15 @@ export function sheetLayout(cardW: number, cardH: number, paper = A4): SheetLayo
   const rows = Math.floor((paper.height - 2 * MARGIN) / cardH);
   if (cols < 1 || rows < 1 || cols * rows < 2) return null;
   return { cols, rows, perSheet: cols * rows, cardW, cardH, x0: (paper.width - cols * cardW) / 2, top: (paper.height - rows * cardH) / 2, paper };
+}
+
+/**
+ * How a design prints on A4 sheets, or null when it prints one to a page. Only cards (ID cards and
+ * visiting cards) print several to a sheet; a certificate or an invitation goes to a page of its own,
+ * even an invitation small enough for two to fit.
+ */
+export function sheetFor(design: Pick<Design, 'kind' | 'page'>) {
+  return isCard(designKind(design)) ? sheetLayout(design.page.width * PT, design.page.height * PT) : null;
 }
 
 /** The bottom-left corner of card `i` on its sheet, in PDF coordinates (the origin is the paper's bottom left). */

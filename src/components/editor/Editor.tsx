@@ -4,14 +4,16 @@ import './fonts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PAGE_SIZES, designKind, designSchema, kindNoun, localImages, withUploadedImages, type Design, type DesignElement, type ElementType, type Field } from '@/lib/design';
+import { KINDS, PAGE_SIZES, capitalised, designKind, designSchema, isCard, kindNoun, localImages, withArticle, withUploadedImages, type Design, type DesignElement, type ElementType, type Field } from '@/lib/design';
 import { cleanValues } from '@/lib/values';
 import { site } from '@/lib/site';
 import { btn } from '@/components/ui/styles';
 import { SealMark } from '@/components/site/SealMark';
 import { AssetStore, normaliseImageFile, photoSide, type ImageRef } from './assets';
 import { DRAFT_RETURN, saveDraft, takeDraft } from './draft';
-import { buildPdf, buildSheetPdf, downloadBytes, printsOnSheets, safeFilename, type PdfJob } from './pdf';
+import { buildPdf, buildSheetPdf, downloadBytes, safeFilename, type PdfJob } from './pdf';
+import { sheetFor } from './sheet';
+import { downloadImages } from './images';
 import { Stage } from './Stage';
 import { Inspector, type ElementAction } from './Inspector';
 import { LeftPanel } from './LeftPanel';
@@ -50,8 +52,12 @@ function ArrowIcon({ redo = false }: { redo?: boolean }) {
   );
 }
 
-export function Editor({ initialDesign, initialName, templateId: initialTemplateId, user, guestLimit }: Props) {
+export function Editor({ initialDesign, initialName, templateId: initialTemplateId, user: initialUser, guestLimit }: Props) {
   const router = useRouter();
+  // What is left to issue this month, counted down here as documents are issued. Refreshing the page's
+  // data instead would remount the editor once a new template has put its id in the address, and
+  // throw away what was just typed and issued.
+  const [user, setUser] = useState(initialUser);
   const history = useHistory<Design>(initialDesign);
   const design = history.value;
   const [name, setName] = useState(initialName);
@@ -354,15 +360,18 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
       const ref = await uploadImage(file, 'background');
       history.set((d) => {
         let { width, height } = d.page;
-        const card = designKind(d) === 'id-card';
+        const kind = designKind(d);
+        const card = isCard(kind);
         if (matchPage && ref.width && ref.height) {
           if (card) {
-            // An ID card stays the size of an ID card; the artwork only decides which way up it is.
-            const s = PAGE_SIZES[ref.width >= ref.height ? 'card-landscape' : 'card-portrait'];
+            // A card stays the size of its kind of card; the artwork only decides which way up it is.
+            const prefix = kind === 'id-card' ? 'card' : 'visiting';
+            const s = PAGE_SIZES[`${prefix}-${ref.width >= ref.height ? 'landscape' : 'portrait'}` as const];
             width = s.width;
             height = s.height;
           } else {
-            const long = 1123;
+            // A certificate's long side stays that of A4; an invitation's, 7 inches.
+            const long = kind === 'invitation' ? 672 : 1123;
             if (ref.width >= ref.height) {
               width = long;
               height = Math.round((long * ref.height) / ref.width);
@@ -387,6 +396,11 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     } finally {
       setUploading(false);
     }
+  }
+
+  /** A value that is the same on every document, kept in the design. */
+  function onFixed(key: string, value: string) {
+    history.set((d) => ({ ...d, fields: d.fields.map((f) => (f.key === key ? { ...f, sample: value } : f)) }));
   }
 
   /** A photo chosen for the one recipient issued from the editor. It is drawn here and never uploaded. */
@@ -459,7 +473,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
       downloadBytes(pdf, `${safeFilename(clean.values.recipient_name)}-${serial}.pdf`);
       setLastJob(job);
       setResult({ serial, verifyUrl, guest: !!j.guest, remaining: j.remaining });
-      if (!j.guest) router.refresh();
+      if (!j.guest) setUser((u) => u && (u.freeLeft > 0 ? { ...u, freeLeft: u.freeLeft - 1 } : { ...u, credits: Math.max(0, u.credits - 1) }));
     } catch (err) {
       setError({ message: (err as Error).message || 'Something went wrong.' });
     } finally {
@@ -468,14 +482,23 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     }
   }
 
+  // A visiting card prints as a sheet of copies of itself; an ID card, alone on a sheet with cut marks.
+  // Both go by what was issued, which the design may no longer be if its page size has changed since.
+  const lastSheet = lastJob && !lastJob.watermark ? sheetFor(lastJob.design) : null;
+  const copies = !!lastJob && designKind(lastJob.design) === 'visiting-card';
+
   async function downloadSheet() {
     if (!lastJob) return;
-    const pdf = await buildSheetPdf([lastJob], assets);
+    const pdf = await buildSheetPdf([lastJob], assets, undefined, { fill: copies });
     downloadBytes(pdf, `${safeFilename(lastJob.values.recipient_name)}-${lastJob.serial}-A4.pdf`);
   }
 
+  async function downloadImage() {
+    if (lastJob) await downloadImages([lastJob], assets, safeFilename(lastJob.values.recipient_name));
+  }
+
   const quotaNote = user
-    ? `${user.freeLeft} free ${user.freeLeft === 1 ? noun : kindNoun(kind, true)} left this month${user.credits ? ` · ${user.credits.toLocaleString()} package credits` : ''}. Each ${noun} gets a permanent verification page.`
+    ? `${user.freeLeft} free ${user.freeLeft === 1 ? noun : kindNoun(kind, true)} left this month${user.credits ? ` · ${user.credits.toLocaleString()} package credits` : ''}. Each ${noun} gets its own ${KINDS[kind].page}.`
     : `Without an account you can make ${guestLimit} watermarked ${kindNoun(kind, true)}. A free account gives you verifiable ones.`;
 
   const iconButton =
@@ -487,7 +510,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
     // gets a fixed-height two-column one: stage on the left, the chosen panel on the right.
     <div className="flex min-h-dvh flex-col bg-paper lg:h-dvh short:h-dvh">
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-rule bg-card px-3 sm:gap-3 sm:px-4 lg:static short:static">
-        <h1 className="sr-only">{kind === 'id-card' ? 'ID card editor' : 'Certificate editor'}</h1>
+        <h1 className="sr-only">{`${capitalised(noun)} editor`}</h1>
         <Link href={user ? '/app' : '/'} className="flex shrink-0 items-center gap-2 text-ink" aria-label={`${site.name} — ${user ? 'your dashboard' : 'home'}`}>
           <SealMark size={24} className="text-accent" />
           <span className="hidden font-display text-[18px] leading-none sm:inline">{site.name}</span>
@@ -604,7 +627,7 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
         </aside>
 
         <aside
-          aria-label={selected ? 'Element settings' : `Issue ${kind === 'id-card' ? 'an ID card' : 'a certificate'}`}
+          aria-label={selected ? 'Element settings' : `Issue ${withArticle(kind)}`}
           onFocus={onFieldFocus}
           onBlur={onFieldBlur}
           className={`${panel === 'details' ? '' : 'hidden'} bg-paper lg:order-3 lg:block lg:w-[330px] lg:shrink-0 lg:overflow-y-auto lg:border-l short:w-[340px] short:shrink-0 short:overflow-y-auto`}
@@ -627,7 +650,10 @@ export function Editor({ initialDesign, initialName, templateId: initialTemplate
               values={values}
               onValue={(k, v) => setValues((s) => ({ ...s, [k]: v }))}
               onPhoto={onPhoto}
-              onSheet={lastJob && !lastJob.watermark && printsOnSheets(lastJob.design) ? downloadSheet : undefined}
+              onFixed={onFixed}
+              onSheet={lastSheet ? downloadSheet : undefined}
+              sheetLabel={copies && lastSheet ? `Download a sheet of ${lastSheet.perSheet} to print and cut` : 'Download it on an A4 sheet for printing'}
+              onImage={lastJob ? downloadImage : undefined}
               onSettings={(p) => history.set((d) => ({ ...d, settings: { ...d.settings, ...p } }))}
               onIssue={issue}
               busy={busy}
